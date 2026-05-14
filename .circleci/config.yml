@@ -9,23 +9,23 @@ jobs:
             - checkout
 
             - run:
-              name: Install dependencies
-              command: |
-                pip install -r requirements.txt
+                name: Install dependencies
+                command: |
+                    pip install -r requirements.txt
 
             - run:
-              name: Run migrations
-              command: |
-                python manage.py migrate
+                name: Run migrations
+                command: |
+                    python manage.py migrate
             
             - run:
-              name: Run tests
-              command: |
-                python manage/py test
+                name: Run tests
+                command: |
+                    python manage/py test
 
 workflows:
     version: 2
     test:
         jobs:
-          - build
+            - build
 
