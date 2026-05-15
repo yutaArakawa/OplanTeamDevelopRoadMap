@@ -1,9 +1,16 @@
 version: 2.1
-
 jobs:
     build:
         docker:
             - image: cimg/python:3.11
+                environment:
+                    DJANGO_DB_HOST: 127.0.0.1
+            - image: cimg/mysql:8.0
+                environment:
+                    MYSQL_ROOT_PASSWORD: password
+                    MYSQL_DATABASE: stockdb
+                    MYSQL_USER: stockuser
+                    MYSQL_PASSWORD: password
 
         steps:
             - checkout
@@ -12,6 +19,11 @@ jobs:
                 name: Install dependencies
                 command: |
                     pip install -r requirements.txt
+            
+            - run:
+                name: Wait for test_db
+                command:  |
+                    dockerize -wait tcp://localhost:3306 -timeout 1m
 
             - run:
                 name: Run migrations
@@ -21,7 +33,7 @@ jobs:
             - run:
                 name: Run tests
                 command: |
-                    python manage/py test
+                    python manage.py test
 
 workflows:
     version: 2
