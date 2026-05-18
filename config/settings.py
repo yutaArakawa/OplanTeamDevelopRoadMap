@@ -78,19 +78,25 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'stockdb',
-        'USER': 'stockuser',
-        'PASSWORD': 'password',
-        'HOST': os.environ.get('DJANGO_DB_HOST', 'db'),
-        'PORT': '3306',
-        'TEST': {
-            'NAME': 'test_stockdb'
+if os.environ.get('CI'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-}
+
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'stockdb',
+            'USER': 'stockuser',
+            'PASSWORD': 'password',
+            'HOST': os.environ.get('DJANGO_DB_HOST', 'db'),
+            'PORT': '3306',
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
