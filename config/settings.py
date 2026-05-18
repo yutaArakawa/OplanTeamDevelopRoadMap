@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'inventory',
     'accounts',
+    'dashboard',
+    'common',
 ]
 
 MIDDLEWARE = [
@@ -64,6 +66,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'common.context_processors.authority_constants',
             ],
         },
     },
@@ -132,4 +135,4 @@ STATIC_URL = 'static/'
 
 LOGIN_REDIRECT_URL = '/'
 
-LOGIN_REDIRECT_URL = '/accounts/login/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'

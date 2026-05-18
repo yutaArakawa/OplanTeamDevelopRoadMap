@@ -1,0 +1,33 @@
+<button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasID" aria-controls="offcanvasID">
+    <span class="navbar-toggler-icon"></span>
+</button>
+<div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasID" aria-labelledby="offcanvasExampleLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasExampleLabel">サイドバー仮</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class=""list-group>
+            <a href="{% url 'user_list' %}" class="list-group-item list-group-item-action">
+                ユーザー管理
+            </a>
+            {% if request.user.authority_id == 1 %}
+            <li>倉庫管理</li>
+            <li>店舗管理</li>
+            <li>商品管理</li>
+            <li>倉庫店舗連携管理</li>
+            {% endif %}
+            {% if request.user.authority_id == 2 %}
+            <li>店舗在庫管理</li>
+            <li>連携倉庫一覧</li>
+            <li>商品発注</li>
+            <li>発注履歴</li>
+            {% endif %}
+            {% if request.user.authority_id == 3 %}
+            <li>倉庫在庫管理</li>
+            <li>受注管理</li>
+            {% endif %}
+            <li>問い合わせ</li>
+        </div>
+    </div>
+</div>

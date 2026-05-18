@@ -1,12 +1,24 @@
 from django.db import models
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.core.exceptions import ValidationError
 from .constants.prefectures import PREFECTURE_CHOICES
 
 # Create your models here.
+class ActiveManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(delete_flg=False)
 
-class Authority(models.Model):
+class BaseModel(models.Model):
+    delete_flg = models.BooleanField(default=False)
+
+    objects = models.Manager()
+    active_objects = ActiveManager()
+
+    class Meta:
+        abstract = True
+
+class Authority(BaseModel):
     authority_name = models.CharField(max_length=50)
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -16,6 +28,9 @@ class Authority(models.Model):
         return self.authority_name
 
 class User(AbstractUser):
+
+    objects = UserManager()
+    active_objects = ActiveManager()
 
     class Gender(models.IntegerChoices):
         MEN = 1, '男'
@@ -65,7 +80,7 @@ class User(AbstractUser):
     def __str__(self):
         return self.username
 
-class Warehouse(models.Model):
+class Warehouse(BaseModel):
     warehouse_name = models.CharField(max_length=255)
     prefecture = models.CharField(
         max_length=10,
@@ -85,7 +100,7 @@ class Warehouse(models.Model):
     def __str__(self):
         return self.warehouse_name
 
-class Shop(models.Model):
+class Shop(BaseModel):
     shop_name = models.CharField(max_length=255)
     prefecture = models.CharField(
         max_length=10,
@@ -105,7 +120,7 @@ class Shop(models.Model):
     def __str__(self):
         return self.shop_name
 
-class GoodsCategory(models.Model):
+class GoodsCategory(BaseModel):
     category_name = models.CharField(max_length=255)
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -114,7 +129,7 @@ class GoodsCategory(models.Model):
     def __str__(self):
         return self.category_name
 
-class Goods(models.Model):
+class Goods(BaseModel):
     goods_name = models.CharField(max_length=255)
     goods_category = models.ForeignKey(
         'GoodsCategory',
@@ -127,7 +142,7 @@ class Goods(models.Model):
     def __str__(self):
         return self.goods_name
 
-class ShopStock(models.Model):
+class ShopStock(BaseModel):
     shop = models.ForeignKey(
         'Shop',
         on_delete=models.PROTECT
@@ -144,7 +159,7 @@ class ShopStock(models.Model):
     def __str__(self):
         return f'{self.shop} - {self.goods} : {self.stock}'
 
-class WarehouseStock(models.Model):
+class WarehouseStock(BaseModel):
     warehouse = models.ForeignKey(
         'Warehouse',
         on_delete=models.PROTECT
@@ -161,7 +176,7 @@ class WarehouseStock(models.Model):
     def __str__(self):
         return f'{self.warehouse} - {self.goods} : {self.stock}'
 
-class Relation(models.Model):
+class Relation(BaseModel):
     warehouse = models.ForeignKey(
         'Warehouse',
         on_delete=models.PROTECT
@@ -185,7 +200,7 @@ class Relation(models.Model):
     def __str__(self):
         return f'{self.warehouse} - {self.shop}'
 
-class Order(models.Model):
+class Order(BaseModel):
 
     class Status(models.IntegerChoices):
         ORDERED   = 0, '発注済'
@@ -214,7 +229,7 @@ class Order(models.Model):
     def __str__(self):
         return f'受注ID：{self.id}'
     
-class OrderGoods(models.Model):
+class OrderGoods(BaseModel):
     order = models.ForeignKey(
         'Order',
         on_delete=models.PROTECT
@@ -239,7 +254,7 @@ class OrderGoods(models.Model):
     def __str__(self):
         return f'{self.order} - {self.goods} : {self.quantity}'
 
-class Inquiry(models.Model):
+class Inquiry(BaseModel):
 
     class Status(models.IntegerChoices):
         PENDING = 0, '未対応'
@@ -318,7 +333,7 @@ class Inquiry(models.Model):
     def __str__(self):
         return f'問い合わせID:{self.id}'
 
-class MonthlyOrderSummary(models.Model):
+class MonthlyOrderSummary(BaseModel):
     count_date = models.DateField()
     shop = models.ForeignKey(
         'Shop',

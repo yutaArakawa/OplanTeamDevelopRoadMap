@@ -1,0 +1,29 @@
+<nav class="navbar navbar-default border">
+    <div class="container-fluid d-flex">
+
+        <div class="d-flex align-items-center">
+            {% include 'components/sidebar.html' %}
+            <a class="navbar-brand ms-3" href="{% url 'home' %}">Python Stack App</a>
+        </div>
+
+        <div class="d-flex align-items-center">
+            <p class="navbar-text mb-0 me-3">
+                {{ request.user.authority}}:
+                {% if request.user.authority_id == 2 %}
+                {{request.user.shop}}
+                {% elif request.user.authority_id == 3 %}
+                {{request.user.warehouse}}
+                {% endif %}
+                {{ request.user.username }} さんでログイン中
+            </p>
+
+            {% if user.is_authenticated %}
+            <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">ログアウト</button>
+            </form>
+            {% endif %}
+        </div>
+
+    </div>
+</nav>
