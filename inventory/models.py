@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser, UserManager
+from django.contrib.auth.models import AbstractUser, UserManager, BaseUserManager
 from django.core.exceptions import ValidationError
 from .constants.prefectures import PREFECTURE_CHOICES
 
@@ -27,9 +27,37 @@ class Authority(BaseModel):
     def __str__(self):
         return self.authority_name
 
+class CustomUserManager(UserManager):
+
+    def create_superuser(
+        self,
+        username,
+        email=None,
+        password=None,
+        **extra_fields
+    ):
+
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+
+        # 必須項目を追加
+        if "user_gender" not in extra_fields:
+            extra_fields["user_gender"] = User.Gender.OTHERS
+
+        # authority を必須設定
+        if "authority" not in extra_fields:
+            extra_fields["authority"] = Authority.objects.get(id=1)
+
+        return super().create_superuser(
+            username=username,
+            email=email,
+            password=password,
+            **extra_fields
+        )
+
 class User(AbstractUser):
 
-    objects = UserManager()
+    objects = CustomUserManager()
     active_objects = ActiveManager()
 
     class Gender(models.IntegerChoices):
