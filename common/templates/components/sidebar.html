@@ -14,7 +14,9 @@
             {% if request.user.authority_id == 1 %}
             <li>倉庫管理</li>
             <li>店舗管理</li>
+            <a href="{% url 'goods_list' %}" class="list-group-item list-group-item-action">
             <li>商品管理</li>
+            </a>
             <li>倉庫店舗連携管理</li>
             {% endif %}
             {% if request.user.authority_id == 2 %}
