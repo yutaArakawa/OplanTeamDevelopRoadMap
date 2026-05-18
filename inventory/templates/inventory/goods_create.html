@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}
+商品作成
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="mb-4">
+        <h1 class="h3 mb-1">商品作成</h1>
+        <p class="text-muted mb-0">フォーム実装前の土台画面です。ここに商品名、カテゴリ、将来の属性項目を追加します。</p>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="border rounded p-4 bg-light">
+                <p class="fw-bold mb-2">実装予定</p>
+                <ul class="mb-0">
+                    <li>商品名入力</li>
+                    <li>カテゴリ選択</li>
+                    <li>登録・バリデーション</li>
+                </ul>
+            </div>
+            <div class="mt-4">
+                <a href="{% url 'goods_list' %}" class="btn btn-secondary">一覧へ戻る</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
