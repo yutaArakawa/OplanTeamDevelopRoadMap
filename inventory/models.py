@@ -74,6 +74,17 @@ class Goods(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def has_related_records(self):
+        return (
+            self.shopstock_set.filter(delete_flg=False).exists()
+            or self.warehousestock_set.filter(delete_flg=False).exists()
+            or self.ordergoods_set.filter(delete_flg=False).exists()
+        )
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
     def __str__(self):
         return self.goods_name
 
