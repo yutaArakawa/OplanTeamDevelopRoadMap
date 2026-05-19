@@ -2,7 +2,8 @@ from django.shortcuts import render
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView, CreateView
 from django.urls import reverse_lazy
-from inventory.models import User, Authority, Shop, Warehouse
+from accounts.models import User, Authority
+from inventory.models import Shop, Warehouse
 from common.constants import (AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE)
 from .forms import UserCreateForm
 
