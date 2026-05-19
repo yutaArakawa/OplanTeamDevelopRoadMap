@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from inventory.models import User, Authority
+from accounts.models import User, Authority
 from common.constants import (
     AUTHORITY_ADMIN,
     AUTHORITY_SHOP,

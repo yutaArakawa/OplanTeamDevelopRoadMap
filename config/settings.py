@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'accounts',
     'dashboard',
     'common',
+    'inquiry'
 ]
 
 MIDDLEWARE = [
@@ -118,11 +119,11 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
     {
-        'NAME': 'inventory.validators.CustomPasswordValidator',
+        'NAME': 'accounts.validators.CustomPasswordValidator',
     },
 ]
 
-AUTH_USER_MODEL = 'inventory.User'
+AUTH_USER_MODEL = 'accounts.User'
 
 
 # Internationalization
