@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 py-4 w-50 bg-light">
+    <h1 class="h3 mb-3">{{ page_title }}</h1>
+    <p class="text-muted mb-4">
+        この画面は次回の倉庫追加・編集機能で実装予定です。
+    </p>
+    {% if warehouse %}
+    <div class="mb-4">
+        <div class="fw-semibold">{{ warehouse.warehouse_name }}</div>
+        <div class="text-muted">{{ warehouse.get_full_address }}</div>
+    </div>
+    {% endif %}
+    <a href="{% url 'warehouse_list' %}" class="btn btn-secondary">
+        一覧へ戻る
+    </a>
+</div>
+{% endblock %}
