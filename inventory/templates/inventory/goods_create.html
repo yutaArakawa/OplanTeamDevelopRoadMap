@@ -1,28 +1,102 @@
 {% extends 'base.html' %}
 
 {% block title %}
-商品作成
+{{ page_title }}
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="mb-4">
-        <h1 class="h3 mb-1">商品作成</h1>
-        <p class="text-muted mb-0">フォーム実装前の土台画面です。ここに商品名、カテゴリ、将来の属性項目を追加します。</p>
-    </div>
+<div class="container mt-4">
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="py-4 px-4 bg-light h-100">
+                <h1 class="h3 mb-4">{{ page_title }}</h1>
+                <form method="post">
+                    {% csrf_token %}
 
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <div class="border rounded p-4 bg-light">
-                <p class="fw-bold mb-2">実装予定</p>
-                <ul class="mb-0">
-                    <li>商品名入力</li>
-                    <li>カテゴリ選択</li>
-                    <li>登録・バリデーション</li>
-                </ul>
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        入力内容に誤りがあります
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label">
+                            商品名
+                        </label>
+                        {{ form.goods_name }}
+                        {% if form.goods_name.errors %}
+                        <div class="text-danger">
+                            {{ form.goods_name.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">
+                            カテゴリ
+                        </label>
+                        {{ form.goods_category }}
+                        {% if form.goods_category.errors %}
+                        <div class="text-danger">
+                            {{ form.goods_category.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            {{ submit_label }}
+                        </button>
+                        {% if object %}
+                        <button
+                            type="submit"
+                            form="delete-form"
+                            class="btn btn-outline-danger"
+                            {% if not can_delete %}disabled title="在庫情報または受注明細に紐づく商品は削除できません。"{% endif %}
+                        >
+                            削除
+                        </button>
+                        {% endif %}
+                        <a href="{% url 'goods_list' %}" class="btn btn-secondary">
+                            一覧へ戻る
+                        </a>
+                    </div>
+                </form>
+                {% if object %}
+                <form id="delete-form" method="post" action="{% url 'goods_delete' object.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'goods_list' %}">
+                </form>
+                {% endif %}
             </div>
-            <div class="mt-4">
-                <a href="{% url 'goods_list' %}" class="btn btn-secondary">一覧へ戻る</a>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="py-4 px-4 bg-light h-100">
+                <h2 class="h4 mb-3">カテゴリ追加</h2>
+                <p class="text-muted small mb-4">
+                    商品登録中に新しいカテゴリを追加できます。
+                </p>
+                <form method="post" action="{% url 'goods_category_create' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+                    <div class="mb-3">
+                        <label class="form-label">
+                            カテゴリ名
+                        </label>
+                        {{ category_form.category_name }}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            カテゴリ登録
+                        </button>
+                        <a href="{% url 'goods_category_list' %}" class="btn btn-secondary">
+                            一覧で管理
+                        </a>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

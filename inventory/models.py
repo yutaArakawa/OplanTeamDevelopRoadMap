@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from .constants.prefectures import PREFECTURE_CHOICES
 
 # Create your models here.
@@ -73,6 +74,27 @@ class Goods(BaseModel):
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['goods_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_goods_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_goods = Goods.active_objects.filter(goods_name=self.goods_name)
+        if self.pk:
+            duplicate_goods = duplicate_goods.exclude(pk=self.pk)
+
+        if duplicate_goods.exists():
+            raise ValidationError({
+                'goods_name': '同じ商品名は登録できません。'
+            })
 
     def has_related_records(self):
         return (

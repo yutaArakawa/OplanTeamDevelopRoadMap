@@ -9,9 +9,14 @@
     <div>
         <h1 class="h3 mb-1">商品管理</h1>
     </div>
-    <a href="{% url 'goods_create' %}" class="btn btn-primary ms-auto">
-        商品作成
-    </a>
+    <div class="ms-auto d-flex gap-2">
+        <a href="{% url 'goods_category_list' %}" class="btn btn-primary">
+            カテゴリ管理
+        </a>
+        <a href="{% url 'goods_create' %}" class="btn btn-primary">
+            新規商品作成
+        </a>
+    </div>
 </div>
 
 <div class="card shadow-sm mb-4">
