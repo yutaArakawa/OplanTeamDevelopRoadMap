@@ -62,6 +62,36 @@ class GoodsCategory(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['category_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_category_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_categories = GoodsCategory.active_objects.filter(
+            category_name=self.category_name
+        )
+        if self.pk:
+            duplicate_categories = duplicate_categories.exclude(pk=self.pk)
+
+        if duplicate_categories.exists():
+            raise ValidationError({
+                'category_name': '同じカテゴリ名は登録できません。'
+            })
+
+    def has_related_records(self):
+        return self.goods_set.filter(delete_flg=False).exists()
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
     def __str__(self):
         return self.category_name
 
