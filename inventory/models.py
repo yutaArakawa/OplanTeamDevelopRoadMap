@@ -33,6 +33,50 @@ class Warehouse(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['warehouse_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_warehouse_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_warehouses = Warehouse.active_objects.filter(
+            warehouse_name=self.warehouse_name
+        )
+        if self.pk:
+            duplicate_warehouses = duplicate_warehouses.exclude(pk=self.pk)
+
+        if duplicate_warehouses.exists():
+            raise ValidationError({
+                'warehouse_name': '同じ倉庫名は登録できません。'
+            })
+
+    def get_full_address(self):
+        parts = [
+            self.prefecture,
+            self.city,
+            self.address1,
+        ]
+        if self.address2:
+            parts.append(self.address2)
+        return ''.join(parts)
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
+    def has_related_records(self):
+        return (
+            self.user_set.filter(delete_flg=False).exists()
+            or self.warehousestock_set.filter(delete_flg=False).exists()
+            or self.relation_set.filter(delete_flg=False).exists()
+        )
+
     def __str__(self):
         return self.warehouse_name
 

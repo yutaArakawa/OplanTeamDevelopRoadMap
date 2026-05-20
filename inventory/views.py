@@ -1,13 +1,96 @@
-from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
-from django.urls import reverse_lazy
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from django.contrib import messages
+from django.db.models import Q
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, TemplateView, UpdateView
+
 from common.mixins import AdminRequiredMixin
-from inventory.forms import GoodsCategoryForm, GoodsCreateForm
-from inventory.models import Goods, GoodsCategory
+
+from inventory.forms import GoodsCategoryForm, GoodsCreateForm, WarehouseCreateForm
+from inventory.models import Goods, GoodsCategory, Warehouse
+
+
+class WarehouseListView(AdminRequiredMixin, TemplateView):
+    template_name = 'inventory/warehouse_list.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        warehouses = Warehouse.active_objects.all()
+        address_query = self.request.GET.get('address', '').strip()
+
+        if address_query:
+            warehouses = warehouses.filter(
+                Q(prefecture__icontains=address_query)
+                | Q(city__icontains=address_query)
+                | Q(address1__icontains=address_query)
+                | Q(address2__icontains=address_query)
+            )
+
+        context['warehouse_list'] = warehouses.order_by('warehouse_name')
+        context['selected_address'] = address_query
+        return context
+
+
+class WarehouseCreateView(AdminRequiredMixin, CreateView):
+    template_name = 'inventory/warehouse_create.html'
+    model = Warehouse
+    form_class = WarehouseCreateForm
+    success_url = reverse_lazy('warehouse_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '倉庫追加'
+        context['submit_label'] = '登録'
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, '倉庫を登録しました。')
+        return response
+
+
+class WarehouseUpdateView(AdminRequiredMixin, UpdateView):
+    template_name = 'inventory/warehouse_create.html'
+    model = Warehouse
+    form_class = WarehouseCreateForm
+    success_url = reverse_lazy('warehouse_list')
+
+    def get_queryset(self):
+        return Warehouse.active_objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '倉庫編集'
+        context['submit_label'] = '更新'
+        context['can_delete'] = not self.object.has_related_records()
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, '倉庫を更新しました。')
+        return response
+
+
+class WarehouseDeleteView(AdminRequiredMixin, View):
+    success_url = reverse_lazy('warehouse_list')
+
+    def post(self, request, pk):
+        warehouse = get_object_or_404(Warehouse.active_objects, pk=pk)
+
+        if warehouse.has_related_records():
+            messages.error(
+                request,
+                '在庫情報・倉庫店舗連携・所属ユーザーに紐づく倉庫は削除できません。'
+            )
+            return redirect(request.POST.get('next') or reverse('warehouse_list'))
+
+        warehouse.soft_delete()
+        messages.success(request, '倉庫を削除しました。')
+        return redirect(request.POST.get('next') or reverse('warehouse_list'))
 
 class GoodsCategoryListView(AdminRequiredMixin, TemplateView):
     template_name = 'inventory/goods_category_list.html'
@@ -17,7 +100,7 @@ class GoodsCategoryListView(AdminRequiredMixin, TemplateView):
         context['category_list'] = GoodsCategory.active_objects.order_by('category_name')
         return context
 
-
+      
 class GoodsCategoryCreateView(AdminRequiredMixin, CreateView):
     template_name = 'inventory/goods_category_create.html'
     model = GoodsCategory
@@ -147,6 +230,7 @@ class GoodsCreateView(AdminRequiredMixin, CreateView):
         messages.success(self.request, '商品を登録しました。')
         return response
 
+      
 class GoodsUpdateView(AdminRequiredMixin, UpdateView):
     template_name = 'inventory/goods_create.html'
     model = Goods
@@ -176,6 +260,7 @@ class GoodsUpdateView(AdminRequiredMixin, UpdateView):
         messages.success(self.request, '商品を更新しました。')
         return response
 
+      
 class GoodsDeleteView(AdminRequiredMixin, View):
     def post(self, request, pk):
         goods = get_object_or_404(Goods.active_objects, pk=pk)
