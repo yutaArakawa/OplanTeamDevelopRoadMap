@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block title %}
+ユーザー情報更新
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 py-4 w-50 bg-light">
+    <form method="post">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <div class="alert alert-danger">
+            入力内容に誤りがあります
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <div class="col-md-8"> 
+                <div class="mb-3">
+                    <label class="form-label">
+                        ユーザーネーム
+                    </label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                    <div class="text-danger">
+                        {{ form.username.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        パスワード
+                    </label>
+                    {{ form.new_password1 }}
+                    {% if form.new_password1.errors %}
+                    <div class="text-danger">
+                        {{ form.new_password1.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        パスワード確認
+                    </label>
+                    {{ form.new_password2 }}
+                    {% if form.new_password2.errors %}
+                    <div class="text-danger">
+                        {{ form.new_password2.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        性別
+                    </label>
+                    {{ form.user_gender }}
+                    {% if form.user_gender.errors %}
+                    <div class="text-danger">
+                        {{ form.user_gender.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        権限
+                    </label>
+                    {{ form.authority }}
+                    {% if form.authority.errors %}
+                    <div class="text-danger">
+                        {{ form.authority.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if user_authority_id == AUTHORITY_ADMIN or user_authority_id == AUTHORITY_SHOP %}
+                <div class="mb-3">
+                    <label class="form-label">
+                        所属店舗
+                    </label>
+                    {{ form.shop }}
+                    {% if form.shop.errors %}
+                    <div class="text-danger">
+                        {{ form.shop.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if user_authority_id == AUTHORITY_ADMIN or user_authority_id == AUTHORITY_WAREHOUSE %}
+                <div class="mb-3">
+                    <label class="form-label">
+                        所属倉庫
+                    </label>
+                    {{ form.warehouse }}
+                    {% if form.warehouse.errors %}
+                    <div class="text-danger">
+                        {{ form.warehouse.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+                更新
+            </button>
+            <a href="{% url 'user_list' %}" class="btn btn-secondary">
+                戻る
+            </a>
+
+            <!-- 削除ボタン -->
+             <button type="button" class="btn btn-danger ms-auto" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                削除
+            </button>
+
+        </div>
+    </form>
+
+    <!-- 削除確認モーダル -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        ユーザー削除確認
+                    </h5>
+
+                    <button
+                        type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal"
+                    ></button>
+                </div>
+
+                <div class="modal-body">
+                    本当に削除しますか？
+                </div>
+
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal"
+                    >
+                        キャンセル
+                    </button>
+
+                    <form
+                        method="post"
+                        action="{% url 'user_delete' object.pk %}"
+                    >
+                        {% csrf_token %}
+
+                        <button type="submit" class="btn btn-danger">
+                            削除する
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

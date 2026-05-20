@@ -1,11 +1,11 @@
 from django.urls import path
 from django.contrib.auth.views import LoginView, LogoutView
-from .views import UserListView, UserCreateView
+from .views import UserLoginView, UserListView, UserCreateView, UserUpdateView, UserDeleteView
 
 urlpatterns = [
     path(
         'login/',
-        LoginView.as_view(
+        UserLoginView.as_view(
             template_name='accounts/login.html'
         ),
         name='login'
@@ -27,6 +27,18 @@ urlpatterns = [
         'user_create/',
         UserCreateView.as_view(),
         name='user_create'
+    ),
+
+    path(
+        'user_update/<int:pk>/',
+        UserUpdateView.as_view(),
+        name='user_update'
+    ),
+
+    path(
+        'user_delete/<int:pk>/',
+        UserDeleteView.as_view(),
+        name='user_delete'
     ),
 
 ]

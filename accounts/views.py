@@ -1,13 +1,19 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import TemplateView, CreateView
+from django.contrib.auth.views import LoginView, LogoutView
+from django.views import View
+from django.views.generic import TemplateView, CreateView, UpdateView
 from django.urls import reverse_lazy
 from accounts.models import User, Authority
 from inventory.models import Shop, Warehouse
 from common.constants import (AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE)
-from .forms import UserCreateForm
+from .forms import LoginForm , UserCreateForm, UserUpdateForm
 
 # Create your views here.
+
+class UserLoginView(LoginView):
+    template_name = 'accounts/login.html'
+    authentication_form = LoginForm
 
 class UserListView(LoginRequiredMixin, TemplateView):
     template_name = 'accounts/user_list.html'
@@ -16,9 +22,9 @@ class UserListView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
 
         if self.request.user.authority_id == AUTHORITY_ADMIN:
-            users = User.objects.all()
+            users = User.active_objects.all()
         else:
-            users = User.objects.filter(authority_id=self.request.user.authority_id)
+            users = User.active_objects.filter(authority_id=self.request.user.authority_id)
 
         # 絞り込み - 権限
         sort_authority = self.request.GET.get('authority')
@@ -63,3 +69,40 @@ class UserCreateView(LoginRequiredMixin, CreateView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
+
+class UserUpdateView(LoginRequiredMixin, UpdateView):
+    template_name = 'accounts/user_update.html'
+    model = User
+    form_class = UserUpdateForm
+    success_url = reverse_lazy('user_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context['user_authority_id'] = self.request.user.authority_id
+        context['AUTHORITY_ADMIN'] = AUTHORITY_ADMIN
+        context['AUTHORITY_SHOP'] = AUTHORITY_SHOP
+        context['AUTHORITY_WAREHOUSE'] = AUTHORITY_WAREHOUSE
+        return context
+
+class UserDeleteView(LoginRequiredMixin, View):
+
+    def post(self, request, *args, **kwargs):
+        user = get_object_or_404(
+            User,
+            pk=kwargs['pk']
+        )
+
+        if user == request.user:
+            return redirect('user_update', pk=user.pk)
+        user.delete_flg = True
+        user.save()
+        
+        return redirect('user_list')
+
+    
