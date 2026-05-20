@@ -8,6 +8,7 @@
 <div class="d-flex user-list-header">
     <form method="get" class="row g-3 mb-3">
         <div class="col-auto d-flex align-items-center gap-2">
+            {% if user.authority_id == AUTHORITY_ADMIN %}
             <div>
                 <p class="mb-0">権限</p>
                 <select name="authority" class="form-select">
@@ -17,6 +18,8 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
+            {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_SHOP %}
             <div>
                 <p class="mb-0">所属店舗</p>
                 <select name="shop" class="form-select">
@@ -26,6 +29,8 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
+            {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_WAREHOUSE %}
             <div>
                 <p class="mb-0">所属倉庫</p>
                 <select name="warehouse" class="form-select">
@@ -35,6 +40,7 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
         </div>
         <div class="col-auto d-flex align-items-end">
             <button type="submit" class="btn-primary">
@@ -51,11 +57,12 @@
             <th>性別</th>
             <th>権限</th>
             <th>所属</th>
+            <th>編集</th>
         </tr>
     </thead>
     <tbody>
         {% for user in users %}
-        <tr>
+        <tr class="align-middle">
             <!--ユーザー名-->
             <td>{{ user.username}}</td>
 
@@ -79,6 +86,11 @@
             {% elif user.authority_id == AUTHORITY_WAREHOUSE %}
             <td>{{ user.warehouse}}</td>
             {% endif %}
+
+            <!--操作-->
+            <td>
+                <a href="{% url 'user_update' pk=user.pk %}" class="btn btn-sm btn-outline-primary">編集</a>
+            </td>
              
         </tr>
         {% empty %}
@@ -86,4 +98,49 @@
         {% endfor %}
     </tbody>
 </table>
+
+<!-- ページネーション -->
+{% if page_obj.has_other_pages %}
+<nav aria-label="ページネーション">
+    <ul class="pagination justify-content-center mt-3">
+
+        <!-- 前へ -->
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{{ filter_query }}">前へ</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">前へ</span>
+        </li>
+        {% endif %}
+
+        <!-- ページ番号 -->
+        {% for num in paginator.page_range %}
+        {% if page_obj.number == num %}
+        <li class="page-item active">
+            <span class="page-link">{{ num }}</span>
+        </li>
+        {% else %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ num }}{{ filter_query }}">{{ num }}</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+
+        <!-- 次へ -->
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{{ filter_query }}">次へ</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">次へ</span>
+        </li>
+        {% endif %}
+
+    </ul>
+</nav>
+{% endif %}
+
 {% endblock %}
