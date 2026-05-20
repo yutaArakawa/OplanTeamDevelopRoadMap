@@ -111,7 +111,11 @@ class GoodsListView(AdminRequiredMixin, TemplateView):
         category_id = self.request.GET.get('category')
 
         if category_id:
-            goods = goods.filter(goods_category_id=category_id)
+            try:
+                category_id = int(category_id)
+                goods = goods.filter(goods_category_id=category_id)
+            except (TypeError, ValueError):
+                category_id = ''
 
         context['goods_list'] = goods.order_by('goods_name')
         context['categories'] = GoodsCategory.active_objects.all().order_by('category_name')

@@ -13,9 +13,9 @@
                 <form method="post">
                     {% csrf_token %}
 
-                    {% if form.errors %}
+                    {% if form.non_field_errors %}
                     <div class="alert alert-danger">
-                        入力内容に誤りがあります
+                        {{ form.non_field_errors }}
                     </div>
                     {% endif %}
 
