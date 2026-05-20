@@ -8,7 +8,6 @@ from inventory.views import (
     GoodsDeleteView,
     GoodsListView,
     GoodsUpdateView,
-    add_warehouse_management,
     WarehouseCreateView,
     WarehouseDeleteView,
     WarehouseListView,
@@ -28,4 +27,4 @@ urlpatterns = [
     path('warehouses/create/', WarehouseCreateView.as_view(), name='warehouse_create'),
     path('warehouses/<int:pk>/edit/', WarehouseUpdateView.as_view(), name='warehouse_edit'),
     path('warehouses/<int:pk>/delete/', WarehouseDeleteView.as_view(), name='warehouse_delete'),
-)
+]
