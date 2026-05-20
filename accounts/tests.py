@@ -11,10 +11,12 @@ pytestmark = pytest.mark.django_db
 
 class TestLogin:
     def test_login_page_returns_200(self, client):
+        """ログインページが表示される"""
         response = client.get(reverse('login'))
         assert response.status_code == 200
 
     def test_login_success(self, client, admin_user):
+        """正しいID/PWでログインできる"""
         response = client.post(reverse('login'), {
             'username': 'admin_user',
             'password': 'testpass123',
@@ -23,6 +25,7 @@ class TestLogin:
         assert response.url == '/'
 
     def test_login_fail_wrong_password(self, client, admin_user):
+        """間違ったPWで弾かれる"""
         response = client.post(reverse('login'), {
             'username': 'admin_user',
             'password': 'wrongpassword',
@@ -31,6 +34,7 @@ class TestLogin:
         assert not response.wsgi_request.user.is_authenticated
 
     def test_login_fail_unknown_user(self, client):
+        """存在しないユーザーで弾かれる"""
         response = client.post(reverse('login'), {
             'username': 'nobody',
             'password': 'testpass123',
