@@ -82,19 +82,10 @@ class Warehouse(BaseModel):
 
 class Shop(BaseModel):
     shop_name = models.CharField(max_length=255)
-    prefecture = models.CharField(
-        max_length=10,
-        choices=PREFECTURE_CHOICES,
-        blank=True,
-        default='',
-    )
-    city = models.CharField(max_length=100, blank=True, default='')
-    address1 = models.CharField(max_length=255, blank=True, default='')
-    address2 = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True
-    )
+    prefecture = models.CharField(max_length=10,choices=PREFECTURE_CHOICES)
+    city = models.CharField(max_length=100)
+    address1 = models.CharField(max_length=255)
+    address2 = models.CharField(max_length=255,blank=True,null=True)
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
