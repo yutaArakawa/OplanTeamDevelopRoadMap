@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}問い合わせ詳細{% endblock %}
+
+{% block content %}
+<div class="container mt-4 py-4 w-75 bg-light">
+    <h2 class="mb-4">問い合わせ詳細</h2>
+
+    <table class="table table-bordered mb-4">
+        <tbody>
+            <tr>
+                <th class="w-25 table-secondary">件名</th>
+                <td>{{ inquiry.inquiry_title|default:"-" }}</td>
+            </tr>
+            <tr>
+                <th class="table-secondary">問い合わせ内容</th>
+                <td style="white-space: pre-wrap;">{{ inquiry.inquiry_details }}</td>
+            </tr>
+            <tr>
+                <th class="table-secondary">送信者</th>
+                <td>
+                    {% if inquiry.from_user %}
+                        {{ inquiry.from_user.username }}
+                    {% else %}
+                        {{ inquiry.from_name|default:"-" }}（ゲスト）
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th class="table-secondary">送信者権限</th>
+                <td>{{ inquiry.from_authority|default:"-" }}</td>
+            </tr>
+            <tr>
+                <th class="table-secondary">送信者所属</th>
+                <td>
+                    {% if inquiry.from_belong_shop %}
+                        {{ inquiry.from_belong_shop }}
+                    {% elif inquiry.from_belong_warehouse %}
+                        {{ inquiry.from_belong_warehouse }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th class="table-secondary">宛先権限</th>
+                <td>{{ inquiry.to_authority }}</td>
+            </tr>
+            <tr>
+                <th class="table-secondary">宛先所属</th>
+                <td>
+                    {% if inquiry.to_relation %}
+                        {{ inquiry.to_relation }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th class="table-secondary">送信日時</th>
+                <td>{{ inquiry.created_at|date:"Y/m/d H:i" }}</td>
+            </tr>
+            <tr>
+                <th class="table-secondary">ステータス</th>
+                <td>{{ inquiry.get_status_display }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- ステータス更新（受信者のみ） -->
+    {% if is_receiver %}
+    <div class="card mb-4">
+        <div class="card-header">ステータス更新</div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="d-flex align-items-center gap-3">
+                    {{ form.status }}
+                    <button type="submit" class="btn btn-primary">更新</button>
+                </div>
+                {% if form.status.errors %}
+                <div class="text-danger mt-1">{{ form.status.errors }}</div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <a href="{% url 'inquiry_list' %}" class="btn btn-secondary">一覧に戻る</a>
+</div>
+{% endblock %}
