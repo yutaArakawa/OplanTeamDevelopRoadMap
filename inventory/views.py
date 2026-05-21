@@ -292,7 +292,12 @@ class ShopListView(AdminRequiredMixin, TemplateView):
         address_query = self.request.GET.get('address', '').strip()
 
         if address_query:
-            shops = shops.filter(address__icontains=address_query)
+            shops = shops.filter(
+                Q(prefecture__icontains=address_query)
+                | Q(city__icontains=address_query)
+                | Q(address1__icontains=address_query)
+                | Q(address2__icontains=address_query)
+            )
 
         context['selected_address'] = address_query
         shops = shops.order_by('shop_name')

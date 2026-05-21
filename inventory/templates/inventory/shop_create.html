@@ -30,12 +30,48 @@
 
         <div class="mb-3">
             <label class="form-label">
-                住所
+                都道府県
             </label>
-            {{ form.address }}
-            {% if form.address.errors %}
+            {{ form.prefecture }}
+            {% if form.prefecture.errors %}
             <div class="text-danger">
-                {{ form.address.errors }}
+                {{ form.prefecture.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">
+                市区町村
+            </label>
+            {{ form.city }}
+            {% if form.city.errors %}
+            <div class="text-danger">
+                {{ form.city.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">
+                町名・番地
+            </label>
+            {{ form.address1 }}
+            {% if form.address1.errors %}
+            <div class="text-danger">
+                {{ form.address1.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">
+                建物名・部屋番号
+            </label>
+            {{ form.address2 }}
+            {% if form.address2.errors %}
+            <div class="text-danger">
+                {{ form.address2.errors }}
             </div>
             {% endif %}
         </div>
