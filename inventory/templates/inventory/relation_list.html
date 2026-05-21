@@ -17,6 +17,27 @@
     </div>
 </div>
 
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label for="shop_name" class="form-label">店舗名</label>
+                <input
+                    type="text"
+                    id="shop_name"
+                    name="shop_name"
+                    class="form-control"
+                    value="{{ selected_shop_name }}"
+                    placeholder="店舗名で検索"
+                >
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">絞り込む</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card shadow-sm">
     <div class="card-body">
         <table class="table align-middle mb-0">

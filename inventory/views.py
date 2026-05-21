@@ -366,10 +366,17 @@ class RelationListView(AdminRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        shop_name_query = self.request.GET.get('shop_name', '').strip()
         relation_qs = Relation.active_objects.select_related('warehouse').order_by(
             'warehouse__warehouse_name'
         )
-        context['shop_list'] = Shop.active_objects.order_by('shop_name').prefetch_related(
+        shops = Shop.active_objects.all()
+
+        if shop_name_query:
+            shops = shops.filter(shop_name__icontains=shop_name_query)
+
+        context['selected_shop_name'] = shop_name_query
+        context['shop_list'] = shops.order_by('shop_name').prefetch_related(
             Prefetch('relation_set', queryset=relation_qs, to_attr='active_relations')
         )
         return context
