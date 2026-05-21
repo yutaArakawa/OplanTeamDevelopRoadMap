@@ -17,6 +17,13 @@
                 店舗一覧
             </a>
             <li>商品管理</li>
+            <a href="{% url 'warehouse_list' %}" class="list-group-item list-group-item-action">
+                倉庫管理
+            </a>
+            <li>店舗管理</li>
+            <a href="{% url 'goods_list' %}" class="list-group-item list-group-item-action">
+                商品管理
+            </a>
             <li>倉庫店舗連携管理</li>
             {% endif %}
             {% if request.user.authority_id == 2 %}

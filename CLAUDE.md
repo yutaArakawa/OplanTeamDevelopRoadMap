@@ -1,0 +1,69 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Development Environment
+
+This project uses Docker Compose with MySQL. Start the full stack with:
+
+```bash
+docker-compose up
+```
+
+The web server runs on `http://localhost:8000`. The MySQL database is exposed on port 3307 (mapped from container port 3306).
+
+For local development without Docker (CI mode uses SQLite):
+
+```bash
+pip install -r requirements.txt
+CI=true python manage.py migrate
+CI=true python manage.py runserver
+```
+
+## Common Commands
+
+```bash
+# Run all tests (inside Docker container)
+docker exec -e CI=true python_stock_app-web-1 pytest
+
+# Run all tests (without Docker, uses SQLite)
+CI=true pytest
+
+# Run tests for a single app
+CI=true pytest accounts/
+
+# Run a single test class or method
+CI=true pytest accounts/tests.py::TestLogin
+CI=true pytest accounts/tests.py::TestLogin::test_login_success
+
+# Apply migrations
+python manage.py migrate
+
+# Create a superuser (requires Authority id=1 to exist in DB)
+python manage.py createsuperuser
+```
+
+## Architecture Overview
+
+This is a Django inventory/stock management system for a multi-location retail business. It manages relationships between warehouses and shops, stock levels, orders, and user accounts.
+
+**Apps:**
+
+- `inventory` — Core domain models: `Warehouse`, `Shop`, `Goods`, `GoodsCategory`, `ShopStock`, `WarehouseStock`, `Relation` (warehouse↔shop link), `Order`, `OrderGoods`
+- `accounts` — Custom user model extending `AbstractUser`, with `Authority` (role) and FK links to `Warehouse`/`Shop`
+- `dashboard` — Home page view; `MonthlyOrderSummary` aggregation model
+- `inquiry` — Inquiry/support ticket model between user roles
+- `common` — Shared utilities: `BaseModel`, `ActiveManager`, role-check mixins, constants, context processor
+
+**Key patterns:**
+
+- **Soft delete**: All models inherit from `BaseModel` which has `delete_flg`. Use `Model.active_objects` (filters `delete_flg=False`) for normal queries; `Model.objects` gives all records including deleted.
+- **Role-based access**: Three roles defined in `common/constants.py` — `AUTHORITY_ADMIN=1`, `AUTHORITY_SHOP=2`, `AUTHORITY_WAREHOUSE=3`. Access control uses mixins in `common/mixins.py` (`AdminRequiredMixin`, `ShopStaffRequiredMixin`, `WarehouseStaffRequiredMixin`). Constants are injected into every template via the `authority_constants` context processor.
+- **User constraints**: Shop staff (`authority_id=2`) must have a `shop` FK; warehouse staff (`authority_id=3`) must have a `warehouse` FK. This is enforced in `User.clean()`.
+- **Cross-app FK references**: `accounts.User` references `inventory.Warehouse` and `inventory.Shop` by string (`'inventory.Warehouse'`). `dashboard.MonthlyOrderSummary` references `inventory` models similarly. Avoid circular imports by using string-form FK targets.
+
+**Database:** MySQL in Docker (`stockdb`). CI uses SQLite (controlled by the `CI` environment variable in `config/settings.py`).
+
+**CI:** CircleCI runs migrations and `pytest` on every push.
+
+**Testing:** Uses pytest + pytest-django. Configuration is in `pytest.ini` (sets `DJANGO_SETTINGS_MODULE`). Shared fixtures (users, authorities, shops, warehouses) are defined in `conftest.py` at the project root. Each `Authority` fixture is created with an explicit `id` matching the role constants (`AUTHORITY_ADMIN=1`, `AUTHORITY_SHOP=2`, `AUTHORITY_WAREHOUSE=3`) so that permission logic in views and forms works correctly during tests.
