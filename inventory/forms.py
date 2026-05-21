@@ -58,7 +58,7 @@ class WarehouseCreateForm(forms.ModelForm):
 class ShopForm(forms.ModelForm):
     class Meta:
         model = Shop
-        fields = ('shop_name', 'address')
+        fields = ('shop_name', 'prefecture', 'city', 'address1', 'address2')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -66,6 +66,18 @@ class ShopForm(forms.ModelForm):
         self.fields['shop_name'].widget.attrs.update({
             'class': 'form-control'
         })
-        self.fields['address'].widget.attrs.update({
+        self.fields['prefecture'].widget.attrs.update({
+            'class': 'form-select'
+        })
+        self.fields['city'].widget.attrs.update({
             'class': 'form-control'
         })
+        self.fields['address1'].widget.attrs.update({
+            'class': 'form-control'
+        })
+        self.fields['address2'].widget.attrs.update({
+            'class': 'form-control'
+        })
+        self.fields['prefecture'].required = True
+        self.fields['city'].required = True
+        self.fields['address1'].required = True
