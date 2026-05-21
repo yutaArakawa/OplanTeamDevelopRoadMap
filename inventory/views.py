@@ -282,6 +282,18 @@ class ShopListView(AdminRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        shops = Shop.active_objects.all().order_by('id')
+        shops = Shop.active_objects.all()
+        address_query = self.request.GET.get('address', '').strip()
+
+        if address_query:
+            shops = shops.filter(
+                Q(prefecture__icontains=address_query)
+                | Q(city__icontains=address_query)
+                | Q(address1__icontains=address_query)
+                | Q(address2__icontains=address_query)
+            )
+
+        context['selected_address'] = address_query
+        shops = shops.order_by('shop_name')
         context['shops'] = shops
         return context
