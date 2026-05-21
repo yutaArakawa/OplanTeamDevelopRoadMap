@@ -1,5 +1,5 @@
 from django import forms
-from inventory.models import Goods, GoodsCategory, Warehouse
+from inventory.models import Goods, GoodsCategory, Shop, Warehouse
 
 class GoodsCategoryForm(forms.ModelForm):
     class Meta:
@@ -53,3 +53,31 @@ class WarehouseCreateForm(forms.ModelForm):
         self.fields['address2'].widget.attrs.update({
             'class': 'form-control'
         })
+
+
+class ShopForm(forms.ModelForm):
+    class Meta:
+        model = Shop
+        fields = ('shop_name', 'prefecture', 'city', 'address1', 'address2')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['shop_name'].widget.attrs.update({
+            'class': 'form-control'
+        })
+        self.fields['prefecture'].widget.attrs.update({
+            'class': 'form-select'
+        })
+        self.fields['city'].widget.attrs.update({
+            'class': 'form-control'
+        })
+        self.fields['address1'].widget.attrs.update({
+            'class': 'form-control'
+        })
+        self.fields['address2'].widget.attrs.update({
+            'class': 'form-control'
+        })
+        self.fields['prefecture'].required = True
+        self.fields['city'].required = True
+        self.fields['address1'].required = True

@@ -9,8 +9,8 @@ from django.views.generic import CreateView, TemplateView, UpdateView
 
 from common.mixins import AdminRequiredMixin
 
-from inventory.forms import GoodsCategoryForm, GoodsCreateForm, WarehouseCreateForm
-from inventory.models import Goods, GoodsCategory, Warehouse
+from inventory.forms import GoodsCategoryForm,GoodsCreateForm,ShopForm,WarehouseCreateForm
+from inventory.models import Goods, GoodsCategory, Warehouse, Shop
 
 
 class WarehouseListView(AdminRequiredMixin, TemplateView):
@@ -275,3 +275,81 @@ class GoodsDeleteView(AdminRequiredMixin, View):
         goods.soft_delete()
         messages.success(request, '商品を削除しました。')
         return redirect(request.POST.get('next') or reverse('goods_list'))
+    
+
+class ShopListView(AdminRequiredMixin, TemplateView):
+    template_name = 'inventory/shop_list.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        shops = Shop.active_objects.all()
+        address_query = self.request.GET.get('address', '').strip()
+
+        if address_query:
+            shops = shops.filter(
+                Q(prefecture__icontains=address_query)
+                | Q(city__icontains=address_query)
+                | Q(address1__icontains=address_query)
+                | Q(address2__icontains=address_query)
+            )
+
+        context['selected_address'] = address_query
+        shops = shops.order_by('shop_name')
+        context['shops'] = shops
+        return context
+
+
+class ShopCreateView(AdminRequiredMixin, CreateView):
+    template_name = 'inventory/shop_create.html'
+    model = Shop
+    form_class = ShopForm
+    success_url = reverse_lazy('shop_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '店舗追加'
+        context['submit_label'] = '登録'
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, '店舗を登録しました。')
+        return response
+
+
+class ShopUpdateView(AdminRequiredMixin, UpdateView):
+    template_name = 'inventory/shop_create.html'
+    model = Shop
+    form_class = ShopForm
+    success_url = reverse_lazy('shop_list')
+
+    def get_queryset(self):
+        return Shop.active_objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '店舗編集'
+        context['submit_label'] = '更新'
+        context['can_delete'] = not self.object.has_related_records()
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, '店舗を更新しました。')
+        return response
+
+
+class ShopDeleteView(AdminRequiredMixin, View):
+    def post(self, request, pk):
+        shop = get_object_or_404(Shop.active_objects, pk=pk)
+
+        if shop.has_related_records():
+            messages.error(
+                request,
+                '在庫情報・倉庫店舗連携・所属ユーザー・集計データに紐づく店舗は削除できません。'
+            )
+            return redirect(request.POST.get('next') or reverse('shop_list'))
+
+        shop.soft_delete()
+        messages.success(request, '店舗を削除しました。')
+        return redirect(request.POST.get('next') or reverse('shop_list'))
