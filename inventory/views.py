@@ -297,3 +297,11 @@ class ShopListView(AdminRequiredMixin, TemplateView):
         shops = shops.order_by('shop_name')
         context['shops'] = shops
         return context
+
+
+class ShopCreatePlaceholderView(AdminRequiredMixin, TemplateView):
+    template_name = 'inventory/shop_create_placeholder.html'
+
+
+class ShopUpdatePlaceholderView(AdminRequiredMixin, TemplateView):
+    template_name = 'inventory/shop_edit_placeholder.html'

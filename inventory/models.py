@@ -97,6 +97,16 @@ class Shop(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def get_full_address(self):
+        parts = [
+            self.prefecture,
+            self.city,
+            self.address1,
+        ]
+        if self.address2:
+            parts.append(self.address2)
+        return ''.join(parts)
+
     def __str__(self):
         return self.shop_name
 
