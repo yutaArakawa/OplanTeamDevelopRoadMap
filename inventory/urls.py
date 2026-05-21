@@ -12,9 +12,10 @@ from inventory.views import (
     WarehouseDeleteView,
     WarehouseListView,
     WarehouseUpdateView,
-    ShopCreatePlaceholderView,
+    ShopCreateView,
+    ShopDeleteView,
     ShopListView,
-    ShopUpdatePlaceholderView,
+    ShopUpdateView,
 )
 
 urlpatterns = [
@@ -31,6 +32,7 @@ urlpatterns = [
     path('warehouses/<int:pk>/edit/', WarehouseUpdateView.as_view(), name='warehouse_edit'),
     path('warehouses/<int:pk>/delete/', WarehouseDeleteView.as_view(), name='warehouse_delete'),
     path('shops/', ShopListView.as_view(), name='shop_list'),
-    path('shops/create/', ShopCreatePlaceholderView.as_view(), name='shop_create'),
-    path('shops/<int:pk>/edit/', ShopUpdatePlaceholderView.as_view(), name='shop_edit'),
+    path('shops/create/', ShopCreateView.as_view(), name='shop_create'),
+    path('shops/<int:pk>/edit/', ShopUpdateView.as_view(), name='shop_edit'),
+    path('shops/<int:pk>/delete/', ShopDeleteView.as_view(), name='shop_delete'),
 ]

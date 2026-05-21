@@ -82,30 +82,25 @@ class Warehouse(BaseModel):
 
 class Shop(BaseModel):
     shop_name = models.CharField(max_length=255)
-    prefecture = models.CharField(
-        max_length=10,
-        choices=PREFECTURE_CHOICES
-    )
-    city = models.CharField(max_length=100)
-    address1 = models.CharField(max_length=255)
-    address2 = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True
-    )
+    address = models.CharField(max_length=255)
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def get_full_address(self):
-        parts = [
-            self.prefecture,
-            self.city,
-            self.address1,
-        ]
-        if self.address2:
-            parts.append(self.address2)
-        return ''.join(parts)
+        return self.address
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
+    def has_related_records(self):
+        return (
+            self.user_set.filter(delete_flg=False).exists()
+            or self.shopstock_set.filter(delete_flg=False).exists()
+            or self.relation_set.filter(delete_flg=False).exists()
+            or self.monthlyordersummary_set.filter(delete_flg=False).exists()
+        )
 
     def __str__(self):
         return self.shop_name

@@ -23,9 +23,7 @@ def authority_warehouse(db):
 def shop(db):
     return Shop.objects.create(
         shop_name='テスト店舗',
-        prefecture='東京都',
-        city='渋谷区',
-        address1='1-1-1',
+        address='東京都渋谷区1-1-1',
     )
 
 
@@ -33,9 +31,7 @@ def shop(db):
 def shop2(db):
     return Shop.objects.create(
         shop_name='テスト店舗2',
-        prefecture='大阪府',
-        city='大阪市',
-        address1='2-2-2',
+        address='大阪府大阪市2-2-2',
     )
 
 
