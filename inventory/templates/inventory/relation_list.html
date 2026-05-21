@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}
+倉庫店舗連携管理
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">倉庫店舗連携管理</h1>
+        <p class="text-muted mb-0">店舗ごとに紐づく倉庫を一覧表示します。</p>
+    </div>
+    <div class="ms-auto">
+        <a href="{% url 'relation_create' %}" class="btn btn-primary">
+            連携倉庫追加
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 32%;">店舗</th>
+                    <th>連携倉庫</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for shop in shop_list %}
+                <tr>
+                    <td class="fw-semibold">
+                        <div>{{ shop.shop_name }}</div>
+                        <div class="small text-muted">{{ shop.address }}</div>
+                    </td>
+                    <td>
+                        {% for relation in shop.active_relations %}
+                        <div class="border rounded px-3 py-2 mb-2">
+                            <div class="fw-semibold">{{ relation.warehouse.warehouse_name }}</div>
+                            <div class="small text-muted">{{ relation.warehouse.get_full_address }}</div>
+                        </div>
+                        {% empty %}
+                        <span class="text-muted">連携倉庫はありません</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" class="text-center text-muted py-4">
+                        登録済みの店舗はありません
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
