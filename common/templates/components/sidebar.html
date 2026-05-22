@@ -36,7 +36,9 @@
             <li>倉庫在庫管理</li>
             <li>受注管理</li>
             {% endif %}
-            <li>問い合わせ</li>
+            <a href="{% url 'inquiry_list' %}" class="list-group-item list-group-item-action">
+                問い合わせ
+            </a>
         </div>
     </div>
 </div>
