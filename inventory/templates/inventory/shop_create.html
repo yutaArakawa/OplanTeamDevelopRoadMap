@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 py-4 w-50 bg-light">
+    <h1 class="h3 mb-4">{{ page_title }}</h1>
+    <form method="post">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <div class="mb-3">
+            <label class="form-label">
+                店舗名
+            </label>
+            {{ form.shop_name }}
+            {% if form.shop_name.errors %}
+            <div class="text-danger">
+                {{ form.shop_name.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">
+                都道府県
+            </label>
+            {{ form.prefecture }}
+            {% if form.prefecture.errors %}
+            <div class="text-danger">
+                {{ form.prefecture.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">
+                市区町村
+            </label>
+            {{ form.city }}
+            {% if form.city.errors %}
+            <div class="text-danger">
+                {{ form.city.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">
+                町名・番地
+            </label>
+            {{ form.address1 }}
+            {% if form.address1.errors %}
+            <div class="text-danger">
+                {{ form.address1.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">
+                建物名・部屋番号
+            </label>
+            {{ form.address2 }}
+            {% if form.address2.errors %}
+            <div class="text-danger">
+                {{ form.address2.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+                {{ submit_label }}
+            </button>
+            {% if object %}
+            <button
+                type="submit"
+                form="delete-form"
+                class="btn btn-outline-danger"
+                {% if not can_delete %}disabled title="在庫情報・倉庫店舗連携・所属ユーザー・集計データに紐づく店舗は削除できません。"{% endif %}
+            >
+                削除
+            </button>
+            {% endif %}
+            <a href="{% url 'shop_list' %}" class="btn btn-secondary">
+                一覧へ戻る
+            </a>
+        </div>
+    </form>
+    {% if object %}
+    <form id="delete-form" method="post" action="{% url 'shop_delete' object.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'shop_list' %}">
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

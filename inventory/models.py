@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from .constants.prefectures import PREFECTURE_CHOICES
 
 # Create your models here.
@@ -32,25 +33,84 @@ class Warehouse(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['warehouse_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_warehouse_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_warehouses = Warehouse.active_objects.filter(
+            warehouse_name=self.warehouse_name
+        )
+        if self.pk:
+            duplicate_warehouses = duplicate_warehouses.exclude(pk=self.pk)
+
+        if duplicate_warehouses.exists():
+            raise ValidationError({
+                'warehouse_name': '同じ倉庫名は登録できません。'
+            })
+
+    def get_full_address(self):
+        parts = [
+            self.prefecture,
+            self.city,
+            self.address1,
+        ]
+        if self.address2:
+            parts.append(self.address2)
+        return ''.join(parts)
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
+    def has_related_records(self):
+        return (
+            self.user_set.filter(delete_flg=False).exists()
+            or self.warehousestock_set.filter(delete_flg=False).exists()
+            or self.relation_set.filter(delete_flg=False).exists()
+        )
+
     def __str__(self):
         return self.warehouse_name
 
 class Shop(BaseModel):
     shop_name = models.CharField(max_length=255)
-    prefecture = models.CharField(
-        max_length=10,
-        choices=PREFECTURE_CHOICES
-    )
+    prefecture = models.CharField(max_length=10,choices=PREFECTURE_CHOICES)
     city = models.CharField(max_length=100)
     address1 = models.CharField(max_length=255)
-    address2 = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True
-    )
+    address2 = models.CharField(max_length=255,blank=True,null=True)
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def get_full_address(self):
+        parts = [
+            self.prefecture,
+            self.city,
+            self.address1,
+        ]
+        if self.address2:
+            parts.append(self.address2)
+        return ''.join(parts)
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
+    def has_related_records(self):
+        return (
+            self.user_set.filter(delete_flg=False).exists()
+            or self.shopstock_set.filter(delete_flg=False).exists()
+            or self.relation_set.filter(delete_flg=False).exists()
+            or self.monthlyordersummary_set.filter(delete_flg=False).exists()
+        )
 
     def __str__(self):
         return self.shop_name
@@ -60,6 +120,36 @@ class GoodsCategory(BaseModel):
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['category_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_category_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_categories = GoodsCategory.active_objects.filter(
+            category_name=self.category_name
+        )
+        if self.pk:
+            duplicate_categories = duplicate_categories.exclude(pk=self.pk)
+
+        if duplicate_categories.exists():
+            raise ValidationError({
+                'category_name': '同じカテゴリ名は登録できません。'
+            })
+
+    def has_related_records(self):
+        return self.goods_set.filter(delete_flg=False).exists()
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
 
     def __str__(self):
         return self.category_name
@@ -73,6 +163,38 @@ class Goods(BaseModel):
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['goods_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_goods_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_goods = Goods.active_objects.filter(goods_name=self.goods_name)
+        if self.pk:
+            duplicate_goods = duplicate_goods.exclude(pk=self.pk)
+
+        if duplicate_goods.exists():
+            raise ValidationError({
+                'goods_name': '同じ商品名は登録できません。'
+            })
+
+    def has_related_records(self):
+        return (
+            self.shopstock_set.filter(delete_flg=False).exists()
+            or self.warehousestock_set.filter(delete_flg=False).exists()
+            or self.ordergoods_set.filter(delete_flg=False).exists()
+        )
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
 
     def __str__(self):
         return self.goods_name

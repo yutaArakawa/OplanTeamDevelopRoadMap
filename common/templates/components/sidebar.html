@@ -12,10 +12,18 @@
                 ユーザー管理
             </a>
             {% if request.user.authority_id == 1 %}
-            <li>倉庫管理</li>
-            <li>店舗管理</li>
-            <li>商品管理</li>
-            <li>倉庫店舗連携管理</li>
+            <a href="{% url 'shop_list' %}" class="list-group-item list-group-item-action">
+                店舗一覧
+            </a>
+            <a href="{% url 'warehouse_list' %}" class="list-group-item list-group-item-action">
+                倉庫管理
+            </a>
+            <a href="{% url 'goods_list' %}" class="list-group-item list-group-item-action">
+                商品管理
+            </a>
+            <a href="{% url 'relation_list' %}" class="list-group-item list-group-item-action">
+                倉庫店舗連携管理
+            </a>
             {% endif %}
             {% if request.user.authority_id == 2 %}
             <li>店舗在庫管理</li>
@@ -27,7 +35,9 @@
             <li>倉庫在庫管理</li>
             <li>受注管理</li>
             {% endif %}
-            <li>問い合わせ</li>
+            <a href="{% url 'inquiry_list' %}" class="list-group-item list-group-item-action">
+                問い合わせ
+            </a>
         </div>
     </div>
 </div>
