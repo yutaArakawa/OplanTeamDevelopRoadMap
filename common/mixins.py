@@ -5,6 +5,8 @@ from common.constants import (AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOU
 # 管理者
 class AdminRequiredMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         if request.user.authority_id != AUTHORITY_ADMIN:
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
@@ -12,6 +14,8 @@ class AdminRequiredMixin(LoginRequiredMixin):
 # 店舗スタッフ
 class ShopStaffRequiredMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         if request.user.authority_id != AUTHORITY_SHOP:
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
@@ -19,6 +23,8 @@ class ShopStaffRequiredMixin(LoginRequiredMixin):
 # 倉庫スタッフ
 class WarehouseStaffRequiredMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         if request.user.authority_id != AUTHORITY_WAREHOUSE:
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)

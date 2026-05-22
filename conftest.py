@@ -1,6 +1,6 @@
 import pytest
 from accounts.models import User, Authority
-from inventory.models import Shop, Warehouse
+from inventory.models import GoodsCategory, Goods, Shop, Warehouse, WarehouseStock
 
 
 @pytest.fixture
@@ -102,3 +102,22 @@ def deleted_user(db, authority_admin):
     user.delete_flg = True
     user.save()
     return user
+
+
+@pytest.fixture
+def goods_category(db):
+    return GoodsCategory.objects.create(category_name='テストカテゴリ')
+
+
+@pytest.fixture
+def goods(db, goods_category):
+    return Goods.objects.create(goods_name='テスト商品', goods_category=goods_category)
+
+
+@pytest.fixture
+def warehouse_stock(db, warehouse_user, goods):
+    return WarehouseStock.objects.create(
+        warehouse=warehouse_user.warehouse,
+        goods=goods,
+        stock=100,
+    )
