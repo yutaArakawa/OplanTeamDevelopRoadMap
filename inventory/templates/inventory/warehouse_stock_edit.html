@@ -16,16 +16,13 @@
         </div>
         {% endif %}
 
-        <div class="mb-3">
-            <label class="form-label">
-                商品名
-            </label>
+        <div class="mb-3 border-bottom pb-2">
+            <small class="text-muted">商品名</small>
+            <div class="fs-5">{{ goods.goods_name }}</div>
         </div>
 
         <div class="mb-3">
-            <label class="form-label">
-                在庫数
-            </label>
+            <small class="text-muted">在庫数</small>
             {{ form.stock }}
             {% if form.stock.errors %}
             <div class="text-danger">
