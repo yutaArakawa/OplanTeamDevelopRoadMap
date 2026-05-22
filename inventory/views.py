@@ -302,33 +302,7 @@ class ShopListView(AdminRequiredMixin, TemplateView):
         context['selected_address'] = address_query
         shops = shops.order_by('shop_name')
         context['shops'] = shops
-        context['keyword'] = keyword
-        return context
-
-
-class ShopCreateView(AdminRequiredMixin, CreateView):
-    template_name = 'inventory/shop_create.html'
-    model = Shop
-    form_class = ShopCreateForm
-    success_url = reverse_lazy('shop_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page_title'] = '店舗作成'
-        context['submit_label'] = '作成'
-        return context
-
-
-class ShopUpdateView(AdminRequiredMixin, UpdateView):
-    template_name = 'inventory/shop_create.html'
-    model = Shop
-    form_class = ShopCreateForm
-    success_url = reverse_lazy('shop_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page_title'] = '店舗編集'
-        context['submit_label'] = '更新'
+        context['keyword'] = address_query
         return context
 
 
