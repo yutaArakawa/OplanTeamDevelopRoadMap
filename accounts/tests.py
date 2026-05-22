@@ -1,6 +1,7 @@
 import pytest
+from django.core.management import call_command
 from django.urls import reverse
-from accounts.models import User
+from accounts.models import Authority, User
 
 pytestmark = pytest.mark.django_db
 
@@ -265,3 +266,71 @@ class TestLoginWithDeletedUser:
         })
         assert response.status_code == 302
         assert response.url == '/'
+
+
+# ---------------------------------------------------------------------------
+# seed_master マネジメントコマンド
+# ---------------------------------------------------------------------------
+
+class TestSeedMasterCommand:
+
+    def test_creates_all_authorities(self, db):
+        """コマンド実行後に Authority が3件（id=1,2,3）作成される"""
+        call_command('seed_master')
+        assert Authority.objects.filter(id=1, authority_name='管理者').exists()
+        assert Authority.objects.filter(id=2, authority_name='店舗スタッフ').exists()
+        assert Authority.objects.filter(id=3, authority_name='倉庫スタッフ').exists()
+        assert Authority.objects.count() == 3
+
+    def test_creates_superuser(self, db):
+        """コマンド実行後にスーパーユーザー admin が作成される"""
+        call_command('seed_master')
+        user = User.objects.get(username='admin')
+        assert user.is_superuser is True
+        assert user.authority_id == 1
+
+    def test_superuser_can_login(self, db, client):
+        """作成されたスーパーユーザー（admin/password）でログインできる"""
+        call_command('seed_master')
+        response = client.post(reverse('login'), {
+            'username': 'admin',
+            'password': 'password',
+        })
+        assert response.status_code == 302
+        assert response.url == '/'
+
+    def test_idempotent_authorities(self, db):
+        """2回実行しても Authority は重複作成されない"""
+        call_command('seed_master')
+        call_command('seed_master')
+        assert Authority.objects.count() == 3
+
+    def test_idempotent_superuser(self, db):
+        """2回実行しても superuser は重複作成されない"""
+        call_command('seed_master')
+        call_command('seed_master')
+        assert User.objects.filter(username='admin').count() == 1
+
+    def test_existing_authority_not_overwritten(self, db):
+        """既存の Authority レコードがあっても上書きされない（get_or_create のスキップ動作）"""
+        Authority.objects.create(id=1, authority_name='既存データ')
+        call_command('seed_master')
+        assert Authority.objects.get(id=1).authority_name == '既存データ'
+
+    def test_existing_superuser_not_overwritten(self, db):
+        """同名ユーザーが既に存在する場合は作成をスキップする"""
+        # 事前に Authority を作成してからユーザーを作成
+        authority = Authority.objects.create(id=1, authority_name='管理者')
+        Authority.objects.create(id=2, authority_name='店舗スタッフ')
+        Authority.objects.create(id=3, authority_name='倉庫スタッフ')
+        User.objects.create_superuser(
+            username='admin',
+            password='differentpassword',
+            user_gender=1,
+            authority=authority,
+        )
+        call_command('seed_master')
+        # ユーザーは1件のまま、パスワードも変わっていない
+        assert User.objects.filter(username='admin').count() == 1
+        user = User.objects.get(username='admin')
+        assert user.check_password('differentpassword')
