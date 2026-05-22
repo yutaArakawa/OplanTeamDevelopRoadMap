@@ -32,7 +32,9 @@
             <li>発注履歴</li>
             {% endif %}
             {% if request.user.authority_id == 3 %}
-            <li>倉庫在庫管理</li>
+            <a href="{% url 'warehouse_stock_list' %}" class="list-group-item list-group-item-action">
+                倉庫在庫管理
+            </a>
             <li>受注管理</li>
             {% endif %}
             <a href="{% url 'inquiry_list' %}" class="list-group-item list-group-item-action">
