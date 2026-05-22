@@ -1,7 +1,7 @@
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.contrib import messages
-from django.db.models import Q, Sum
+from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
@@ -10,8 +10,15 @@ from django.views.generic import CreateView, TemplateView, UpdateView
 
 from common.mixins import AdminRequiredMixin, WarehouseStaffRequiredMixin
 
-from inventory.forms import GoodsCategoryForm,GoodsCreateForm,ShopForm,WarehouseCreateForm, WarehouseStockEditForm
-from inventory.models import Goods, GoodsCategory, Warehouse, Shop, WarehouseStock
+from inventory.forms import (
+    GoodsCategoryForm,
+    GoodsCreateForm,
+    RelationForm,
+    ShopForm,
+    WarehouseCreateForm,
+    WarehouseStockEditForm
+)
+from inventory.models import Goods, GoodsCategory, Relation, Warehouse, Shop, WarehouseStock
 
 from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
 
@@ -412,3 +419,41 @@ class WarehouseStockEditView(WarehouseStaffRequiredMixin, TemplateView):
             )
             return redirect('warehouse_stock_list')
         return render(request, self.template_name, {'form': form, 'goods': goods})
+
+class RelationListView(AdminRequiredMixin, TemplateView):
+    template_name = 'inventory/relation_list.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        shop_name_query = self.request.GET.get('shop_name', '').strip()
+        relation_qs = Relation.active_objects.select_related('warehouse').order_by(
+            'warehouse__warehouse_name'
+        )
+        shops = Shop.active_objects.all()
+
+        if shop_name_query:
+            shops = shops.filter(shop_name__icontains=shop_name_query)
+
+        context['selected_shop_name'] = shop_name_query
+        context['shop_list'] = shops.order_by('shop_name').prefetch_related(
+            Prefetch('relation_set', queryset=relation_qs, to_attr='active_relations')
+        )
+        return context
+
+
+class RelationCreateView(AdminRequiredMixin, CreateView):
+    template_name = 'inventory/relation_create.html'
+    model = Relation
+    form_class = RelationForm
+    success_url = reverse_lazy('relation_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '連携倉庫追加'
+        context['submit_label'] = '登録'
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, '連携倉庫を登録しました。')
+        return response

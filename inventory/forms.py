@@ -1,5 +1,5 @@
 from django import forms
-from inventory.models import Goods, GoodsCategory, Shop, Warehouse, WarehouseStock
+from inventory.models import Goods, GoodsCategory, Relation, Shop, Warehouse, WarehouseStock
 
 class GoodsCategoryForm(forms.ModelForm):
     class Meta:
@@ -82,6 +82,39 @@ class ShopForm(forms.ModelForm):
         self.fields['city'].required = True
         self.fields['address1'].required = True
 
+
+
+class RelationForm(forms.ModelForm):
+    class Meta:
+        model = Relation
+        fields = ('shop', 'warehouse')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['shop'].widget.attrs.update({
+            'class': 'form-select'
+        })
+        self.fields['warehouse'].widget.attrs.update({
+            'class': 'form-select'
+        })
+        self.fields['shop'].queryset = Shop.active_objects.order_by('shop_name')
+        self.fields['warehouse'].queryset = Warehouse.active_objects.order_by('warehouse_name')
+
+    def clean(self):
+        cleaned_data = super().clean()
+        shop = cleaned_data.get('shop')
+        warehouse = cleaned_data.get('warehouse')
+
+        if not shop or not warehouse:
+            return cleaned_data
+
+        if Relation.active_objects.filter(shop=shop, warehouse=warehouse).exists():
+            raise forms.ValidationError(
+                '選択した店舗と倉庫の組み合わせは既に登録されています。'
+            )
+
+        return cleaned_data
 
 
 class WarehouseStockEditForm(forms.ModelForm):

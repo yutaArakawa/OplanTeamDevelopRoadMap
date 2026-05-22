@@ -2,28 +2,30 @@
     <div class="container-fluid d-flex">
 
         <div class="d-flex align-items-center">
+            {% if user.is_authenticated %}
             {% include 'components/sidebar.html' %}
-            <a class="navbar-brand ms-3" href="{% url 'home' %}">Python Stack App</a>
+            {% endif %}
+            <a class="navbar-brand ms-3" href="{% url 'home' %}">Python Stock App</a>
         </div>
 
+        {% if user.is_authenticated %}
         <div class="d-flex align-items-center">
             <p class="navbar-text mb-0 me-3">
-                {{ request.user.authority}}:
+                {{ request.user.authority }}:
                 {% if request.user.authority_id == 2 %}
-                {{request.user.shop}}
+                {{ request.user.shop }}
                 {% elif request.user.authority_id == 3 %}
-                {{request.user.warehouse}}
+                {{ request.user.warehouse }}
                 {% endif %}
                 {{ request.user.username }} さんでログイン中
             </p>
 
-            {% if user.is_authenticated %}
             <form action="{% url 'logout' %}" method="post">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-danger">ログアウト</button>
             </form>
-            {% endif %}
         </div>
+        {% endif %}
 
     </div>
 </nav>

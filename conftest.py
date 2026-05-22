@@ -1,6 +1,7 @@
 import pytest
 from accounts.models import User, Authority
-from inventory.models import GoodsCategory, Goods, Shop, Warehouse, WarehouseStock
+from inventory.models import GoodsCategory, Goods, Shop, Warehouse, WarehouseStock, Relation
+from inquiry.models import Inquiry
 
 
 @pytest.fixture
@@ -120,4 +121,46 @@ def warehouse_stock(db, warehouse_user, goods):
         warehouse=warehouse_user.warehouse,
         goods=goods,
         stock=100,
+    )
+
+@pytest.fixture
+def relation(db, shop, warehouse):
+    return Relation.objects.create(shop=shop, warehouse=warehouse)
+
+
+@pytest.fixture
+def inquiry_to_admin(db, authority_admin, shop_user):
+    """店舗スタッフ → 管理者 宛の問い合わせ"""
+    return Inquiry.objects.create(
+        to_authority=authority_admin,
+        from_user=shop_user,
+        from_authority=shop_user.authority,
+        from_belong_shop=shop_user.shop,
+        inquiry_details='管理者宛のテスト問い合わせ',
+    )
+
+
+@pytest.fixture
+def inquiry_to_shop(db, authority_shop, warehouse_user, relation):
+    """倉庫スタッフ → 店舗スタッフ 宛の問い合わせ"""
+    return Inquiry.objects.create(
+        to_authority=authority_shop,
+        from_user=warehouse_user,
+        from_authority=warehouse_user.authority,
+        from_belong_warehouse=warehouse_user.warehouse,
+        to_relation=relation,
+        inquiry_details='店舗スタッフ宛のテスト問い合わせ',
+    )
+
+
+@pytest.fixture
+def inquiry_to_warehouse(db, authority_warehouse, shop_user, relation):
+    """店舗スタッフ → 倉庫スタッフ 宛の問い合わせ"""
+    return Inquiry.objects.create(
+        to_authority=authority_warehouse,
+        from_user=shop_user,
+        from_authority=shop_user.authority,
+        from_belong_shop=shop_user.shop,
+        to_relation=relation,
+        inquiry_details='倉庫スタッフ宛のテスト問い合わせ',
     )

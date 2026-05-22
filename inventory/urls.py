@@ -8,6 +8,8 @@ from inventory.views import (
     GoodsDeleteView,
     GoodsListView,
     GoodsUpdateView,
+    RelationCreateView,
+    RelationListView,
     WarehouseCreateView,
     WarehouseDeleteView,
     WarehouseListView,
@@ -39,4 +41,6 @@ urlpatterns = [
     path('shops/create/', ShopCreateView.as_view(), name='shop_create'),
     path('shops/<int:pk>/edit/', ShopUpdateView.as_view(), name='shop_edit'),
     path('shops/<int:pk>/delete/', ShopDeleteView.as_view(), name='shop_delete'),
+    path('relations/', RelationListView.as_view(), name='relation_list'),
+    path('relations/create/', RelationCreateView.as_view(), name='relation_create'),
 ]
