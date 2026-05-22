@@ -1,5 +1,5 @@
 from django import forms
-from inventory.models import Goods, GoodsCategory, Shop, Warehouse
+from inventory.models import Goods, GoodsCategory, Shop, Warehouse, WarehouseStock
 
 class GoodsCategoryForm(forms.ModelForm):
     class Meta:
@@ -81,3 +81,19 @@ class ShopForm(forms.ModelForm):
         self.fields['prefecture'].required = True
         self.fields['city'].required = True
         self.fields['address1'].required = True
+
+
+
+class WarehouseStockEditForm(forms.ModelForm):
+    class Meta:
+        model = WarehouseStock
+        fields = ('stock',)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['stock'].widget = forms.NumberInput(attrs={
+            'class': 'form-control',
+            'step': '1',
+            'min': '0',
+        })

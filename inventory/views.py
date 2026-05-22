@@ -1,17 +1,19 @@
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.contrib import messages
-from django.db.models import Q
-from django.shortcuts import get_object_or_404, redirect
+from django.db.models import Q, Sum
+from django.db.models.functions import Coalesce
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, TemplateView, UpdateView
 
-from common.mixins import AdminRequiredMixin
+from common.mixins import AdminRequiredMixin, WarehouseStaffRequiredMixin
 
-from inventory.forms import GoodsCategoryForm,GoodsCreateForm,ShopForm,WarehouseCreateForm
-from inventory.models import Goods, GoodsCategory, Warehouse, Shop
+from inventory.forms import GoodsCategoryForm,GoodsCreateForm,ShopForm,WarehouseCreateForm, WarehouseStockEditForm
+from inventory.models import Goods, GoodsCategory, Warehouse, Shop, WarehouseStock
 
+from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
 
 class WarehouseListView(AdminRequiredMixin, TemplateView):
     template_name = 'inventory/warehouse_list.html'
@@ -353,3 +355,60 @@ class ShopDeleteView(AdminRequiredMixin, View):
         shop.soft_delete()
         messages.success(request, '店舗を削除しました。')
         return redirect(request.POST.get('next') or reverse('shop_list'))
+
+class WarehouseStockListView(WarehouseStaffRequiredMixin, TemplateView):
+    template_name = 'inventory/warehouse_stock_list.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        warehouse_stock_list = Goods.active_objects.select_related('goods_category').annotate(
+            # レコードがあればそのままstock、なければ0で表示
+            stock=Coalesce(
+                Sum('warehousestock__stock', filter=Q(warehousestock__warehouse=self.request.user.warehouse)), 0
+            )
+        )
+        categories = GoodsCategory.active_objects.all()
+
+        category_query = self.request.GET.get('category')
+        if category_query:
+            warehouse_stock_list = warehouse_stock_list.filter(goods_category_id=category_query)
+
+        context['selected_category'] = category_query
+        context['categories'] = categories
+        warehouse_stock_list = warehouse_stock_list.order_by('goods_name')
+        context['warehouse_stock_list'] = warehouse_stock_list
+        context['warehouse_name'] = self.request.user.warehouse.warehouse_name
+        return context
+
+class WarehouseStockEditView(WarehouseStaffRequiredMixin, TemplateView):
+    model = WarehouseStock
+    template_name = 'inventory/warehouse_stock_edit.html'
+    success_url = reverse_lazy('warehouse_stock_list')
+
+    def get(self, request, *args, **kwargs):
+        goods = get_object_or_404(Goods, pk=kwargs['goods_pk'])
+        # レコードがあればそのままstock、なければ0で表示
+        warehouse_stock = WarehouseStock.objects.filter(
+            goods=goods,
+            warehouse=request.user.warehouse
+        ).first()
+        form = WarehouseStockEditForm(instance=warehouse_stock)
+        context = self.get_context_data(**kwargs)
+        context['form'] = form
+        context['goods'] = goods
+        context['page_title'] = '倉庫在庫編集'
+        context['submit_label'] = '更新'
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        goods = get_object_or_404(Goods, pk=kwargs['goods_pk'])
+        form = WarehouseStockEditForm(request.POST)
+        if form.is_valid():
+            stock_value = form.cleaned_data['stock']
+            WarehouseStock.objects.update_or_create(
+                goods=goods,
+                warehouse=request.user.warehouse,
+                defaults={'stock': stock_value}
+            )
+            return redirect('warehouse_stock_list')
+        return render(request, self.template_name, {'form': form, 'goods': goods})
