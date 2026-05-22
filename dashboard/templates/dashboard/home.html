@@ -1,1 +1,198 @@
 {% extends 'base.html' %}
+
+{% block title %}ホーム{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h3">ホーム</h1>
+</div>
+
+{# ===== 管理者 ===== #}
+{% if request.user.authority_id == 1 %}
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">倉庫数</p>
+                <p class="fs-2 fw-bold mb-0">{{ warehouse_count }}</p>
+            </div>
+            <div class="card-footer bg-transparent">
+                <a href="{% url 'warehouse_list' %}" class="btn btn-sm btn-outline-primary">倉庫管理へ</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">店舗数</p>
+                <p class="fs-2 fw-bold mb-0">{{ shop_count }}</p>
+            </div>
+            <div class="card-footer bg-transparent">
+                <a href="{% url 'shop_list' %}" class="btn btn-sm btn-outline-primary">店舗管理へ</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">商品数</p>
+                <p class="fs-2 fw-bold mb-0">{{ goods_count }}</p>
+            </div>
+            <div class="card-footer bg-transparent">
+                <a href="{% url 'goods_list' %}" class="btn btn-sm btn-outline-primary">商品管理へ</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">ユーザー数</p>
+                <p class="fs-2 fw-bold mb-0">{{ user_count }}</p>
+            </div>
+            <div class="card-footer bg-transparent">
+                <a href="{% url 'user_list' %}" class="btn btn-sm btn-outline-primary">ユーザー管理へ</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-1">未処理発注</p>
+                <p class="fs-2 fw-bold mb-0 {% if pending_order_count > 0 %}text-danger{% endif %}">
+                    {{ pending_order_count }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ===== 店舗スタッフ ===== #}
+{% elif request.user.authority_id == 2 %}
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header fw-bold">
+                自店舗 発注ランキング（過去1か月）
+            </div>
+            <div class="card-body p-0">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>順位</th>
+                            <th>商品名</th>
+                            <th class="text-end">発注数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in shop_ranking %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ item.goods__goods_name }}</td>
+                            <td class="text-end">{{ item.total }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">
+                                過去1か月の発注データがありません
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header fw-bold">
+                全店舗 発注ランキング（過去1か月）
+            </div>
+            <div class="card-body p-0">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>順位</th>
+                            <th>商品名</th>
+                            <th class="text-end">発注数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in all_shop_ranking %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ item.goods__goods_name }}</td>
+                            <td class="text-end">{{ item.total }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">
+                                過去1か月の発注データがありません
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ===== 倉庫スタッフ ===== #}
+{% elif request.user.authority_id == 3 %}
+<div class="row g-3 mb-4">
+    <div class="col-sm-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="text-muted mb-1">在庫品目数</p>
+                <p class="fs-2 fw-bold mb-0">{{ stock_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="text-muted mb-1">新規受注</p>
+                <p class="fs-2 fw-bold mb-0 {% if new_order_count > 0 %}text-danger{% endif %}">
+                    {{ new_order_count }}
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <p class="text-muted mb-1">準備中</p>
+                <p class="fs-2 fw-bold mb-0">{{ preparing_order_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header fw-bold">倉庫在庫一覧（{{ request.user.warehouse }}）</div>
+    <div class="card-body p-0">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>商品名</th>
+                    <th class="text-end">在庫数</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in warehouse_stocks %}
+                <tr>
+                    <td>{{ s.goods.goods_name }}</td>
+                    <td class="text-end">{{ s.stock }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" class="text-center text-muted py-4">在庫データがありません</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
