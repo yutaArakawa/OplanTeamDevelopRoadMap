@@ -540,3 +540,4 @@ class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
         messages.success(request, 'ステータスを更新しました。')
         return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
     
+    
