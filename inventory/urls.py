@@ -24,6 +24,9 @@ from inventory.views import (
     OrderCreateView,
     OrderCsvDownloadView,
     OrderCsvImportView,
+    OrderHistoryView,
+    OrderHistoryCSVExportView,
+    OrderHistoryPDFExportView,
     WarehouseOrderListView,
     WarehouseOrderStatusUpdateView,
     WarehouseOrderCSVExportView,
@@ -59,4 +62,7 @@ urlpatterns = [
     path('order_create/<int:goods_pk>/', OrderCreateView.as_view(), name='order_create'),
     path('order_csv_download/', OrderCsvDownloadView.as_view(), name='order_csv_download'),
     path('order_csv_import/', OrderCsvImportView.as_view(), name='order_csv_import'),
+    path('order_history/', OrderHistoryView.as_view(), name='order_history'),
+    path('order_history/export/csv/', OrderHistoryCSVExportView.as_view(), name='order_history_csv_export'),
+    path('order_history/export/pdf/', OrderHistoryPDFExportView.as_view(), name='order_history_pdf_export'),
 ]
