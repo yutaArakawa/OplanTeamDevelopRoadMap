@@ -1,6 +1,8 @@
 import pytest
 from django.urls import reverse
+from inquiry.forms import InquiryCreateForm
 from inquiry.models import Inquiry
+from common.constants import AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
 
 pytestmark = pytest.mark.django_db
 
@@ -313,3 +315,102 @@ class TestInquiryDelete:
         client.post(reverse('inquiry_delete', kwargs={'pk': inquiry_to_admin.pk}))
         inquiry_to_admin.refresh_from_db()
         assert inquiry_to_admin.delete_flg is True
+
+
+# ---------------------------------------------------------------------------
+# フォーム直接テスト（label_from_instance / 初期値プリセット）
+# ---------------------------------------------------------------------------
+
+class TestInquiryCreateFormBehavior:
+
+    def test_shop_user_to_relation_label_shows_warehouse_name(self, shop_user, relation):
+        """店舗スタッフの場合、to_relation の選択肢ラベルは倉庫名のみ表示される"""
+        form = InquiryCreateForm(login_user=shop_user)
+        field = form.fields['to_relation']
+        label = field.label_from_instance(relation)
+        assert label == relation.warehouse.warehouse_name
+
+    def test_warehouse_user_to_relation_label_shows_shop_name(self, warehouse_user, relation):
+        """倉庫スタッフの場合、to_relation の選択肢ラベルは店舗名のみ表示される"""
+        form = InquiryCreateForm(login_user=warehouse_user)
+        field = form.fields['to_relation']
+        label = field.label_from_instance(relation)
+        assert label == relation.shop.shop_name
+
+    def test_shop_user_relation_id_prepopulates_to_authority_and_to_relation(self, shop_user, relation):
+        """店舗スタッフが relation_id を渡すと宛先権限=倉庫スタッフ・宛先所属が初期入力される"""
+        form = InquiryCreateForm(login_user=shop_user, relation_id=relation.id)
+        assert form.initial.get('to_authority') == AUTHORITY_WAREHOUSE
+        assert form.initial.get('to_relation') == relation.pk
+
+    def test_warehouse_user_relation_id_prepopulates_to_authority_and_to_relation(self, warehouse_user, relation):
+        """倉庫スタッフが relation_id を渡すと宛先権限=店舗スタッフ・宛先所属が初期入力される"""
+        form = InquiryCreateForm(login_user=warehouse_user, relation_id=relation.id)
+        assert form.initial.get('to_authority') == AUTHORITY_SHOP
+        assert form.initial.get('to_relation') == relation.pk
+
+    def test_no_relation_id_no_prepopulation(self, shop_user):
+        """relation_id を渡さない場合は初期入力されない"""
+        form = InquiryCreateForm(login_user=shop_user)
+        assert 'to_authority' not in form.initial
+        assert 'to_relation' not in form.initial
+
+    def test_relation_belonging_to_different_shop_no_prepopulation(self, shop_user, shop2, warehouse):
+        """自分の店舗と関係ない relation_id を渡しても初期入力されない"""
+        from inventory.models import Relation
+        other_relation = Relation.objects.create(shop=shop2, warehouse=warehouse)
+        form = InquiryCreateForm(login_user=shop_user, relation_id=other_relation.id)
+        assert 'to_authority' not in form.initial
+        assert 'to_relation' not in form.initial
+
+    def test_nonexistent_relation_id_no_prepopulation(self, shop_user):
+        """存在しない relation_id を渡しても初期入力されずエラーにならない"""
+        form = InquiryCreateForm(login_user=shop_user, relation_id=99999)
+        assert 'to_authority' not in form.initial
+        assert 'to_relation' not in form.initial
+
+
+# ---------------------------------------------------------------------------
+# 問い合わせ送信画面 GET に relation クエリパラメータを渡すテスト
+# ---------------------------------------------------------------------------
+
+class TestInquiryCreateViewRelationParam:
+
+    def test_shop_user_get_with_relation_param_prepopulates_form(self, client, shop_user, relation):
+        """店舗スタッフが ?relation=<id> 付きで GET すると、フォームに初期値が入る"""
+        client.force_login(shop_user)
+        url = reverse('inquiry_create') + f'?relation={relation.id}'
+        response = client.get(url)
+        assert response.status_code == 200
+        form = response.context['form']
+        assert form.initial.get('to_authority') == AUTHORITY_WAREHOUSE
+        assert form.initial.get('to_relation') == relation.pk
+
+    def test_warehouse_user_get_with_relation_param_prepopulates_form(self, client, warehouse_user, relation):
+        """倉庫スタッフが ?relation=<id> 付きで GET すると、フォームに初期値が入る"""
+        client.force_login(warehouse_user)
+        url = reverse('inquiry_create') + f'?relation={relation.id}'
+        response = client.get(url)
+        assert response.status_code == 200
+        form = response.context['form']
+        assert form.initial.get('to_authority') == AUTHORITY_SHOP
+        assert form.initial.get('to_relation') == relation.pk
+
+    def test_get_without_relation_param_no_prepopulation(self, client, shop_user):
+        """relation クエリパラメータなしで GET すると初期値は空"""
+        client.force_login(shop_user)
+        response = client.get(reverse('inquiry_create'))
+        assert response.status_code == 200
+        form = response.context['form']
+        assert 'to_authority' not in form.initial
+        assert 'to_relation' not in form.initial
+
+    def test_get_with_nonexistent_relation_param_returns_200(self, client, shop_user):
+        """存在しない relation id を渡しても 200 で表示される（初期値なし）"""
+        client.force_login(shop_user)
+        url = reverse('inquiry_create') + '?relation=99999'
+        response = client.get(url)
+        assert response.status_code == 200
+        form = response.context['form']
+        assert 'to_authority' not in form.initial
+        assert 'to_relation' not in form.initial
