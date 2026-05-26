@@ -55,6 +55,13 @@ This is a Django inventory/stock management system for a multi-location retail b
 - `inquiry` — Inquiry/support ticket model between user roles
 - `common` — Shared utilities: `BaseModel`, `ActiveManager`, role-check mixins, constants, context processor
 
+**Ordering flow (shop staff):**
+
+1. **発注商品選択画面** (`/order_goods/`, `OrderGoodsListView`) — Shop staff selects a product to order. Lists all active goods annotated with total stock across related warehouses. Supports category filter.
+2. **発注画面** (`/order_create/<goods_pk>/`, `OrderCreateView`) — Shop staff inputs per-warehouse order quantities. On POST, creates one `Order` per warehouse where `quantity > 0`, each with a linked `OrderGoods` record.
+3. **CSV一括発注ダウンロード** (`/order_csv_download/`, `OrderCsvDownloadView`) — Downloads a CSV template pre-filled with related-warehouse stock data (columns: 倉庫ID, 倉庫名, カテゴリ, 商品ID, 商品名, 現在の在庫数, 発注数). The 発注数 column is left blank.
+4. **CSV一括発注インポート** (`/order_csv_import/`, `OrderCsvImportView`) — Accepts the filled-in CSV via POST. Rows with blank or zero 発注数 are skipped. Multiple goods for the same warehouse are grouped under a single `Order` (one `Order` per warehouse per import).
+
 **Key patterns:**
 
 - **Soft delete**: All models inherit from `BaseModel` which has `delete_flg`. Use `Model.active_objects` (filters `delete_flg=False`) for normal queries; `Model.objects` gives all records including deleted.
@@ -67,3 +74,7 @@ This is a Django inventory/stock management system for a multi-location retail b
 **CI:** CircleCI runs migrations and `pytest` on every push.
 
 **Testing:** Uses pytest + pytest-django. Configuration is in `pytest.ini` (sets `DJANGO_SETTINGS_MODULE`). Shared fixtures (users, authorities, shops, warehouses) are defined in `conftest.py` at the project root. Each `Authority` fixture is created with an explicit `id` matching the role constants (`AUTHORITY_ADMIN=1`, `AUTHORITY_SHOP=2`, `AUTHORITY_WAREHOUSE=3`) so that permission logic in views and forms works correctly during tests.
+
+Test files per app:
+- `accounts/tests.py` — login, user CRUD (admin), user management
+- `inventory/tests.py` — warehouse stock CRUD, order goods list, order create, CSV download/import
