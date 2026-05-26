@@ -130,3 +130,13 @@ class WarehouseStockEditForm(forms.ModelForm):
             'step': '1',
             'min': '0',
         })
+
+class OrderForm(forms.Form):
+    quantity = forms.IntegerField(
+        min_value=0,
+        initial=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'step': '1',
+        })
+    )

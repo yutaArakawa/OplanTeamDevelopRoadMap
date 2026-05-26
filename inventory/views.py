@@ -1,6 +1,7 @@
 import csv
 from io import BytesIO
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+import traceback
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit, quote
 
 from django.contrib import messages
 from django.db.models import Prefetch, Q, Sum
@@ -9,9 +10,10 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import CreateView, TemplateView, UpdateView
+from django.views.generic import CreateView, TemplateView, UpdateView, ListView
+from django.http import HttpResponse
 
-from common.mixins import AdminRequiredMixin, WarehouseStaffRequiredMixin
+from common.mixins import AdminRequiredMixin, ShopStaffRequiredMixin, WarehouseStaffRequiredMixin
 
 from inventory.forms import (
     GoodsCategoryForm,
@@ -19,9 +21,10 @@ from inventory.forms import (
     RelationForm,
     ShopForm,
     WarehouseCreateForm,
-    WarehouseStockEditForm
+    WarehouseStockEditForm,
+    OrderForm
 )
-from inventory.models import Goods, GoodsCategory, Order, OrderGoods, Relation, Warehouse, Shop, WarehouseStock
+from inventory.models import Goods, GoodsCategory, Relation, Warehouse, Shop, WarehouseStock, Order, OrderGoods
 
 from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
 
@@ -460,7 +463,182 @@ class RelationCreateView(AdminRequiredMixin, CreateView):
         response = super().form_valid(form)
         messages.success(self.request, '連携倉庫を登録しました。')
         return response
+
+class OrderGoodsListView(ShopStaffRequiredMixin, ListView):
+    template_name = 'inventory/order_goods_list.html'
+    context_object_name = 'order_goods_list'
+
+    def get_queryset(self):
+        # 連携倉庫の在庫合計を併せて取得
+        related_warehouse_ids = Relation.objects.filter(
+            shop=self.request.user.shop
+        ).values_list('warehouse_id', flat=True)
+
+        return Goods.active_objects.select_related('goods_category').annotate(
+            # レコードがあればそのままstock、なければ0で表示
+            stock=Coalesce(
+                Sum(
+                    'warehousestock__stock',
+                    filter=Q(warehousestock__warehouse_id__in=related_warehouse_ids)
+                ),
+                0
+            )
+        ).order_by('goods_name')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # ログインユーザーの店舗と連携している倉庫IDを取得
+        related_warehouse_ids = Relation.objects.filter(
+            shop=self.request.user.shop
+        ).values_list('warehouse_id', flat=True)
+
+        select_goods_list = Goods.active_objects.select_related('goods_category').annotate(
+            # レコードがあればそのままstock、なければ0で表示
+            stock=Coalesce(
+                Sum(
+                    'warehousestock__stock',
+                    filter=Q(warehousestock__warehouse_id__in=related_warehouse_ids)
+                ),
+                0
+            )
+        )
+        categories = GoodsCategory.active_objects.all()
+
+        category_query = self.request.GET.get('category')
+        if category_query:
+            select_goods_list = select_goods_list.filter(goods_category_id=category_query)
+
+        context['categories'] = categories
+        context['selected_category'] = category_query
+        select_goods_list = select_goods_list.order_by('goods_name')
+        context['select_goods_list'] = select_goods_list
+        return context
+
+class OrderCreateView(ShopStaffRequiredMixin, TemplateView):
+    template_name = 'inventory/order_create.html'
+
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.goods = get_object_or_404(Goods, pk=self.kwargs['goods_pk'])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        relations = Relation.active_objects.filter(
+            shop=self.request.user.shop
+        ).select_related('warehouse').annotate(
+            warehouse_stock=Coalesce(
+                Sum('warehouse__warehousestock__stock',
+                    filter=Q(warehouse__warehousestock__goods=self.goods)),
+                0
+            )
+        )
+        context['page_title'] = '発注画面'
+        context['submit_label'] = '発注'
+        context['goods'] = self.goods
+        context['relations'] = relations
+        return context
     
+    def post(self, request, *args, **kwargs):
+        relations = Relation.active_objects.filter(
+            shop=request.user.shop
+        ).select_related('warehouse')
+
+        for relation in relations:
+            form = OrderForm({'quantity': request.POST.get(f'quantity_{relation.id}', 0)})
+            if form.is_valid():
+                quantity = form.cleaned_data['quantity']
+                if quantity > 0:
+                    order = Order.objects.create(relation=relation)
+                    OrderGoods.objects.create(
+                        order=order,
+                        goods=self.goods,
+                        quantity=quantity
+                    )
+        messages.success(self.request, '発注しました。')
+        return redirect('order_goods_list')
+
+class OrderCsvDownloadView(ShopStaffRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response.write('\ufeff')  # BOMの書き込み
+        filename = "一括商品発注表.csv"
+        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+
+        writer = csv.writer(response)
+        writer.writerow(['倉庫ID', '倉庫名', 'カテゴリ', '商品ID', '商品名', '現在の在庫数', '発注数'])
+        # ログインユーザーの店舗と連携している倉庫情報を取得
+        related_warehouse_ids = Relation.objects.filter(
+            shop=self.request.user.shop
+        ).values_list('warehouse_id', flat=True)
+
+        stocks = WarehouseStock.active_objects.select_related(
+            'warehouse',
+            'goods',
+            'goods__goods_category',
+        ).filter(
+            warehouse_id__in=related_warehouse_ids
+        ).order_by('warehouse__warehouse_name')
+
+        for stock in stocks:
+            writer.writerow([
+                stock.warehouse.id,
+                stock.warehouse.warehouse_name,
+                stock.goods.goods_category.category_name,
+                stock.goods.id,
+                stock.goods.goods_name,
+                stock.stock,
+                ''  # 発注数は空欄で出力
+            ])
+
+        return response
+
+class OrderCsvImportView(ShopStaffRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        csv_file = request.FILES.get('csv_file')
+        if not csv_file:
+            messages.error(request, 'CSVファイルが選択されていません。')
+            return redirect('order_goods_list')
+
+        try:
+            decoded_file = csv_file.read().decode('utf-8-sig').splitlines()
+            reader = csv.DictReader(decoded_file)
+
+            orders = {}
+            for row in reader:
+                warehouse_id = row['倉庫ID'].strip()
+                goods_id = row['商品ID'].strip()
+                order_quantity_str = row['発注数'].strip()
+                if not order_quantity_str:
+                    continue
+                order_quantity = int(order_quantity_str)
+                if order_quantity > 0:
+                    warehouse = Warehouse.active_objects.filter(id=warehouse_id).first()
+                    goods = Goods.active_objects.filter(id=goods_id).first()
+
+                    if warehouse and goods:
+                        relation = Relation.active_objects.filter(
+                            shop=request.user.shop,
+                            warehouse=warehouse
+                        ).first()
+                        if relation:
+                            # 同一倉庫のOrderがすでに存在する場合は新たにOrderを作成せず、既存のOrderにOrderGoodsを追加する
+                            if relation.id not in orders:
+                                orders[relation.id] = Order.objects.create(relation=relation)
+
+                            order = orders[relation.id]
+                            OrderGoods.objects.create(
+                                order=order,
+                                goods=goods,
+                                quantity=order_quantity
+                            )
+            messages.success(request, 'CSVファイルから発注を作成しました。')
+        except Exception as e:
+            messages.error(request, f'CSVファイルの処理中にエラーが発生しました: {str(e)}')
+            traceback.print_exc()
+
+        return redirect('order_goods_list')
 
 def _get_filtered_orders(request):
     """ログイン倉庫の受注クエリセットを返す（フィルタ適用済み）。CSV・PDFビューと共用。"""
