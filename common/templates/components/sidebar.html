@@ -28,7 +28,9 @@
             {% if request.user.authority_id == 2 %}
             <li>店舗在庫管理</li>
             <li>連携倉庫一覧</li>
-            <li>商品発注</li>
+            <a href="{% url 'order_goods_list' %}" class="list-group-item list-group-item-action">
+                商品発注
+            </a>
             <li>発注履歴</li>
             {% endif %}
             {% if request.user.authority_id == 3 %}

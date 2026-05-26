@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ page_title }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 py-4 w-50 bg-light">
+    <h1 class="h3 mb-4">{{ page_title }}</h1>
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        <div class="mb-3 border-bottom pb-2">
+            <small class="text-muted">商品名</small>
+            <div class="fs-5">{{ goods.goods_name }}</div>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>倉庫名</th>
+                        <th>在庫数</th>
+                        <th>発注個数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for relation in relations %}
+                    <tr>
+                        <td>{{ relation.warehouse.warehouse_name }}</td>
+                        <td>{{ relation.warehouse_stock }}</td>
+                        <td>
+                            <!-- 倉庫毎にrelation.idを名前に含めて識別させる-->
+                            <input
+                                type="number"
+                                name="quantity_{{ relation.id }}"
+                                min="0"
+                                max="{{ relation.warehouse_stock }}"
+                                value="0"
+                                class="form-control"
+                            >
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+                {{ submit_label }}
+            </button>
+            {% if object %}
+            {% endif %}
+            <a href="{% url 'order_goods_list' %}" class="btn btn-secondary">
+                一覧へ戻る
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
