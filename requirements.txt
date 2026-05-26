@@ -3,3 +3,4 @@ mysqlclient
 gunicorn
 pytest
 pytest-django
+reportlab
