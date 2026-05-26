@@ -7,7 +7,7 @@ from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, TemplateView, UpdateView
 
-from common.mixins import AdminRequiredMixin
+from common.mixins import AdminRequiredMixin, ShopStaffRequiredMixin
 
 from inventory.forms import (
     GoodsCategoryForm,
@@ -379,6 +379,18 @@ class RelationListView(AdminRequiredMixin, TemplateView):
         context['shop_list'] = shops.order_by('shop_name').prefetch_related(
             Prefetch('relation_set', queryset=relation_qs, to_attr='active_relations')
         )
+        return context
+
+
+class ShopConnectedWarehouseListView(ShopStaffRequiredMixin, TemplateView):
+    template_name = 'inventory/shop_connected_warehouse_list.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        relations = Relation.active_objects.select_related('warehouse').filter(
+            shop=self.request.user.shop
+        ).order_by('warehouse__warehouse_name')
+        context['relations'] = relations
         return context
 
 
