@@ -37,7 +37,9 @@
             <a href="{% url 'warehouse_stock_list' %}" class="list-group-item list-group-item-action">
                 倉庫在庫管理
             </a>
-            <li>受注管理</li>
+            <a href="{% url 'warehouse_order_list' %}" class="list-group-item list-group-item-action">
+                受注管理
+            </a>
             {% endif %}
             <a href="{% url 'inquiry_list' %}" class="list-group-item list-group-item-action">
                 問い合わせ

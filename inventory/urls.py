@@ -24,6 +24,8 @@ from inventory.views import (
     OrderCreateView,
     OrderCsvDownloadView,
     OrderCsvImportView,
+    WarehouseOrderListView,
+    WarehouseOrderStatusUpdateView,
 )
 
 urlpatterns = [
@@ -41,6 +43,8 @@ urlpatterns = [
     path('warehouses/<int:pk>/delete/', WarehouseDeleteView.as_view(), name='warehouse_delete'),
     path('warehouse_stock/', WarehouseStockListView.as_view(), name='warehouse_stock_list'),
     path('warehouse_stock/edit/<int:goods_pk>/', WarehouseStockEditView.as_view(), name='warehouse_stock_edit'),
+    path('warehouse-orders/', WarehouseOrderListView.as_view(), name='warehouse_order_list'),
+    path('warehouse-orders/<int:pk>/status/', WarehouseOrderStatusUpdateView.as_view(), name='warehouse_order_status_update'),
     path('shops/', ShopListView.as_view(), name='shop_list'),
     path('shops/create/', ShopCreateView.as_view(), name='shop_create'),
     path('shops/<int:pk>/edit/', ShopUpdateView.as_view(), name='shop_edit'),

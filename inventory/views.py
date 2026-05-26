@@ -638,32 +638,85 @@ class OrderCsvImportView(ShopStaffRequiredMixin, View):
 
         return redirect('order_goods_list')
 
-    """
-    template_name = 'inventory/order_csv_import.html'
+class WarehouseOrderListView(WarehouseStaffRequiredMixin, TemplateView):
+    template_name = 'inventory/warehouse_order_list.html'
 
-    def post(self, request, *args, **kwargs):
-        csv_file = request.FILES.get('csv_file')
-        decoded_file = csv_file.read().decode('utf-8-sig').splitlines()
-        reader = csv.DictReader(decoded_file)
-
-        for row in reader:
-            quantity = int(row['発注個数']) if row['発注個数'] else 0
-            if quantity <= 0:
-                continue
-
-            relation = Relation.active_objects.filter(
-                shop=request.user.shop,
-                warehouse_id=row['倉庫ID']
-            ).first()
-
-            if relation:
-                order = Order.objects.create(relation=relation)
-                OrderGoods.objects.create(
-                    order=order,
-                    goods_id=row['商品ID'],
-                    quantity=quantity
+    def _get_filtered_orders(self):
+        qs = (
+            Order.active_objects
+            .filter(relation__warehouse=self.request.user.warehouse)
+            .select_related('relation__shop')
+            .prefetch_related(
+                Prefetch(
+                    'ordergoods_set',
+                    queryset=OrderGoods.active_objects.select_related('goods').order_by('goods__goods_name'),
+                    to_attr='active_order_goods',
                 )
+            )
+            .order_by('-ordered_at')
+        )
 
-        messages.success(request, '一括発注が完了しました。')
-        return redirect('order_goods_list')
-        """
+        date_from = self.request.GET.get('date_from', '').strip()
+        date_to   = self.request.GET.get('date_to',   '').strip()
+        status    = self.request.GET.get('status',    '').strip()
+
+        if date_from:
+            qs = qs.filter(ordered_at__date__gte=date_from)
+        if date_to:
+            qs = qs.filter(ordered_at__date__lte=date_to)
+        if status != '':
+            try:
+                qs = qs.filter(status=int(status))
+            except (ValueError, TypeError):
+                pass
+
+        return qs
+
+    def _build_rows(self, orders):
+        rows = []
+        for order in orders:
+            goods_list = order.active_order_goods
+            count = len(goods_list)
+            if count == 0:
+                rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1})
+            else:
+                for i, og in enumerate(goods_list):
+                    rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count})
+        return rows
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        orders = self._get_filtered_orders()
+        context['rows']            = self._build_rows(orders)
+        context['status_choices']  = Order.Status.choices
+        context['selected_status'] = self.request.GET.get('status',    '')
+        context['date_from']       = self.request.GET.get('date_from', '')
+        context['date_to']         = self.request.GET.get('date_to',   '')
+        return context
+
+
+class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
+
+    ALLOWED_STATUSES = {Order.Status.ORDERED.value, Order.Status.PREPARING.value}
+
+    def post(self, request, pk):
+        order = get_object_or_404(
+            Order.active_objects,
+            pk=pk,
+            relation__warehouse=request.user.warehouse,
+        )
+        new_status = request.POST.get('status', '').strip()
+        try:
+            new_status_int = int(new_status)
+            if new_status_int not in self.ALLOWED_STATUSES:
+                raise ValueError
+        except (ValueError, TypeError):
+            messages.error(request, '無効なステータスです。')
+            return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+
+        order.status = new_status_int
+        order.save(update_fields=['status', 'updated_at'])
+        messages.success(request, 'ステータスを更新しました。')
+        return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+    
+    
