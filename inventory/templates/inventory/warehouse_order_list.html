@@ -41,6 +41,17 @@
   </div>
 </div>
 
+<div class="d-flex justify-content-end gap-2 mb-3">
+  <a href="{% url 'warehouse_order_csv_export' %}?{{ request.GET.urlencode }}"
+     class="btn btn-outline-success">
+    CSVエクスポート
+  </a>
+  <a href="{% url 'warehouse_order_pdf_export' %}?{{ request.GET.urlencode }}"
+     class="btn btn-outline-danger">
+    PDFダウンロード
+  </a>
+</div>
+
 {# ──────────────── 受注一覧テーブル ──────────────── #}
 <div class="card shadow-sm">
   <div class="card-body p-0">

@@ -1,8 +1,11 @@
+import csv
+from io import BytesIO
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.contrib import messages
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
@@ -459,56 +462,60 @@ class RelationCreateView(AdminRequiredMixin, CreateView):
         return response
     
 
+def _get_filtered_orders(request):
+    """ログイン倉庫の受注クエリセットを返す（フィルタ適用済み）。CSV・PDFビューと共用。"""
+    qs = (
+        Order.active_objects
+        .filter(relation__warehouse=request.user.warehouse)
+        .select_related('relation__shop')
+        .prefetch_related(
+            Prefetch(
+                'ordergoods_set',
+                queryset=OrderGoods.active_objects.select_related('goods').order_by('goods__goods_name'),
+                to_attr='active_order_goods',
+            )
+        )
+        .order_by('-ordered_at')
+    )
+
+    date_from = request.GET.get('date_from', '').strip()
+    date_to   = request.GET.get('date_to',   '').strip()
+    status    = request.GET.get('status',    '').strip()
+
+    if date_from:
+        qs = qs.filter(ordered_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(ordered_at__date__lte=date_to)
+    if status != '':
+        try:
+            qs = qs.filter(status=int(status))
+        except (ValueError, TypeError):
+            pass
+
+    return qs
+
+
+def _build_rows(orders):
+    """テンプレート・CSV・PDF 共通のフラット行リストを生成する（rowspan 計算込み）。"""
+    rows = []
+    for order in orders:
+        goods_list = order.active_order_goods
+        count = len(goods_list)
+        if count == 0:
+            rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1})
+        else:
+            for i, og in enumerate(goods_list):
+                rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count})
+    return rows
+
+
 class WarehouseOrderListView(WarehouseStaffRequiredMixin, TemplateView):
     template_name = 'inventory/warehouse_order_list.html'
 
-    def _get_filtered_orders(self):
-        qs = (
-            Order.active_objects
-            .filter(relation__warehouse=self.request.user.warehouse)
-            .select_related('relation__shop')
-            .prefetch_related(
-                Prefetch(
-                    'ordergoods_set',
-                    queryset=OrderGoods.active_objects.select_related('goods').order_by('goods__goods_name'),
-                    to_attr='active_order_goods',
-                )
-            )
-            .order_by('-ordered_at')
-        )
-
-        date_from = self.request.GET.get('date_from', '').strip()
-        date_to   = self.request.GET.get('date_to',   '').strip()
-        status    = self.request.GET.get('status',    '').strip()
-
-        if date_from:
-            qs = qs.filter(ordered_at__date__gte=date_from)
-        if date_to:
-            qs = qs.filter(ordered_at__date__lte=date_to)
-        if status != '':
-            try:
-                qs = qs.filter(status=int(status))
-            except (ValueError, TypeError):
-                pass
-
-        return qs
-
-    def _build_rows(self, orders):
-        rows = []
-        for order in orders:
-            goods_list = order.active_order_goods
-            count = len(goods_list)
-            if count == 0:
-                rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1})
-            else:
-                for i, og in enumerate(goods_list):
-                    rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count})
-        return rows
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        orders = self._get_filtered_orders()
-        context['rows']            = self._build_rows(orders)
+        orders = _get_filtered_orders(self.request)
+        context['rows']            = _build_rows(orders)
         context['status_choices']  = Order.Status.choices
         context['selected_status'] = self.request.GET.get('status',    '')
         context['date_from']       = self.request.GET.get('date_from', '')
@@ -539,5 +546,108 @@ class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
         order.save(update_fields=['status', 'updated_at'])
         messages.success(request, 'ステータスを更新しました。')
         return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+
+
+class WarehouseOrderCSVExportView(WarehouseStaffRequiredMixin, View):
+    """受注一覧を CSV でダウンロードする。"""
+
+    def get(self, request):
+        orders = _get_filtered_orders(request)
+        rows   = _build_rows(orders)
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = 'attachment; filename="warehouse_orders.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
+
+        for row in rows:
+            order = row['order']
+            og    = row['order_goods']
+            writer.writerow([
+                order.relation.shop.shop_name,
+                og.goods.goods_name if og else '',
+                og.quantity         if og else '',
+                order.get_status_display(),
+                order.ordered_at.strftime('%Y-%m-%d %H:%M:%S'),
+                order.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+            ])
+
+        return response
+
+
+class WarehouseOrderPDFExportView(WarehouseStaffRequiredMixin, View):
+    """受注一覧を PDF でダウンロードする。"""
+
+    def get(self, request):
+        try:
+            from reportlab.lib.pagesizes import A4, landscape
+            from reportlab.lib import colors
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.pdfbase import pdfmetrics
+            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        except ImportError:
+            return HttpResponse('PDF生成に必要なライブラリがインストールされていません。', status=500)
+
+        pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
+        FONT = 'HeiseiKakuGo-W5'
+
+        orders = _get_filtered_orders(request)
+        rows   = _build_rows(orders)
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            leftMargin=20, rightMargin=20,
+            topMargin=20, bottomMargin=20,
+        )
+
+        styles     = getSampleStyleSheet()
+        jp_style   = ParagraphStyle('jp',    parent=styles['Normal'],  fontName=FONT, fontSize=9)
+        title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
+
+        elements = []
+        elements.append(Paragraph('受注管理一覧', title_style))
+        elements.append(Spacer(1, 12))
+
+        header = ['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
+        table_data = [[Paragraph(h, jp_style) for h in header]]
+
+        for row in rows:
+            order = row['order']
+            og    = row['order_goods']
+            table_data.append([
+                Paragraph(order.relation.shop.shop_name,          jp_style),
+                Paragraph(og.goods.goods_name if og else '',       jp_style),
+                Paragraph(str(og.quantity)    if og else '',       jp_style),
+                Paragraph(order.get_status_display(),              jp_style),
+                Paragraph(order.ordered_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+                Paragraph(order.updated_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+            ])
+
+        col_widths = [110, 140, 60, 80, 110, 110]
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#4caf50')),
+            ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
+            ('FONTNAME',       (0, 0), (-1, -1), FONT),
+            ('FONTSIZE',       (0, 0), (-1, -1), 9),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
+            ('GRID',           (0, 0), (-1, -1), 0.5, colors.grey),
+            ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING',     (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(table)
+
+        doc.build(elements)
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="warehouse_orders.pdf"'
+        return response
     
     
