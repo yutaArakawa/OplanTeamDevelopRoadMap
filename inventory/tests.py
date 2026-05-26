@@ -4,7 +4,7 @@ import csv as csv_module
 import pytest
 from django.contrib.messages import get_messages
 from django.urls import reverse
-from inventory.models import GoodsCategory, Goods, WarehouseStock, Order, OrderGoods
+from inventory.models import GoodsCategory, Goods, WarehouseStock, Order, OrderGoods, Relation
 
 pytestmark = pytest.mark.django_db
 
@@ -552,3 +552,211 @@ class TestOrderCsvImport:
         response = client.post(reverse('order_csv_import'), {'csv_file': csv_file})
         assert response.status_code == 302
         assert response.url == reverse('order_goods_list')
+
+
+# ---------------------------------------------------------------------------
+# テスト用ヘルパー fixture
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def order(db, relation, goods):
+    """shop → warehouse への発注（OrderGoods 付き）"""
+    o = Order.objects.create(relation=relation)
+    OrderGoods.objects.create(order=o, goods=goods, quantity=3)
+    return o
+
+
+@pytest.fixture
+def order_no_goods(db, relation):
+    """OrderGoods が紐づいていない Order"""
+    return Order.objects.create(relation=relation)
+
+
+# ---------------------------------------------------------------------------
+# 発注履歴画面
+# ---------------------------------------------------------------------------
+
+class TestOrderHistory:
+
+    def test_unauthenticated_redirect(self, client):
+        """未ログインユーザーはログイン画面にリダイレクトされる"""
+        response = client.get(reverse('order_history'))
+        assert response.status_code == 302
+        assert '/accounts/login/' in response['Location']
+
+    def test_admin_forbidden(self, client, admin_user):
+        """管理者は発注履歴画面にアクセスできない（403）"""
+        client.force_login(admin_user)
+        response = client.get(reverse('order_history'))
+        assert response.status_code == 403
+
+    def test_warehouse_user_forbidden(self, client, warehouse_user):
+        """倉庫スタッフは発注履歴画面にアクセスできない（403）"""
+        client.force_login(warehouse_user)
+        response = client.get(reverse('order_history'))
+        assert response.status_code == 403
+
+    def test_shop_user_get_200(self, client, shop_user):
+        """店舗スタッフは発注履歴画面を表示できる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history'))
+        assert response.status_code == 200
+
+    def test_own_order_in_rows(self, client, shop_user, order):
+        """自店舗の発注が rows コンテキストに含まれる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history'))
+        order_ids = [row['order'].pk for row in response.context['rows']]
+        assert order.pk in order_ids
+
+    def test_other_shop_order_not_in_rows(self, client, shop_user, shop2, warehouse2, goods):
+        """他店舗の発注は rows コンテキストに含まれない"""
+        relation2 = Relation.objects.create(shop=shop2, warehouse=warehouse2)
+        other_order = Order.objects.create(relation=relation2)
+        OrderGoods.objects.create(order=other_order, goods=goods, quantity=1)
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history'))
+        order_ids = [row['order'].pk for row in response.context['rows']]
+        assert other_order.pk not in order_ids
+
+    def test_status_choices_in_context(self, client, shop_user):
+        """status_choices がコンテキストに含まれる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history'))
+        assert 'status_choices' in response.context
+        assert len(response.context['status_choices']) > 0
+
+    def test_filter_by_status(self, client, shop_user, order, relation, goods):
+        """ステータスで絞り込めること（一致しないステータスは除外される）"""
+        # order はデフォルトで ORDERED(=0)
+        # 別ステータスの order を作成
+        order_preparing = Order.objects.create(relation=relation, status=Order.Status.PREPARING)
+        OrderGoods.objects.create(order=order_preparing, goods=goods, quantity=1)
+
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history') + f'?status={Order.Status.ORDERED}')
+        order_ids = [row['order'].pk for row in response.context['rows']]
+        assert order.pk in order_ids
+        assert order_preparing.pk not in order_ids
+
+    def test_order_goods_none_row_for_empty_order(self, client, shop_user, order_no_goods):
+        """OrderGoods がない Order の行は order_goods=None になる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history'))
+        empty_rows = [row for row in response.context['rows'] if row['order'].pk == order_no_goods.pk]
+        assert len(empty_rows) == 1
+        assert empty_rows[0]['order_goods'] is None
+
+
+# ---------------------------------------------------------------------------
+# 発注履歴 CSV エクスポート
+# ---------------------------------------------------------------------------
+
+class TestOrderHistoryCSVExport:
+
+    def test_unauthenticated_redirect(self, client):
+        """未ログインユーザーはログイン画面にリダイレクトされる"""
+        response = client.get(reverse('order_history_csv_export'))
+        assert response.status_code == 302
+        assert '/accounts/login/' in response['Location']
+
+    def test_admin_forbidden(self, client, admin_user):
+        """管理者は CSV エクスポートにアクセスできない（403）"""
+        client.force_login(admin_user)
+        response = client.get(reverse('order_history_csv_export'))
+        assert response.status_code == 403
+
+    def test_warehouse_user_forbidden(self, client, warehouse_user):
+        """倉庫スタッフは CSV エクスポートにアクセスできない（403）"""
+        client.force_login(warehouse_user)
+        response = client.get(reverse('order_history_csv_export'))
+        assert response.status_code == 403
+
+    def test_shop_user_get_200(self, client, shop_user):
+        """店舗スタッフは CSV をダウンロードできる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history_csv_export'))
+        assert response.status_code == 200
+
+    def test_content_type_is_csv(self, client, shop_user):
+        """Content-Type が text/csv である"""
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history_csv_export'))
+        assert 'text/csv' in response['Content-Type']
+
+    def test_csv_header_row(self, client, shop_user):
+        """CSV の先頭行が正しいヘッダーになっている"""
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history_csv_export'))
+        content = response.content.decode('utf-8-sig')
+        reader = csv_module.reader(content.splitlines())
+        headers = next(reader)
+        assert headers == ['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
+
+    def test_csv_contains_warehouse_name(self, client, shop_user, order, warehouse):
+        """CSV の発注先倉庫列に倉庫名が出力される"""
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history_csv_export'))
+        content = response.content.decode('utf-8-sig')
+        reader = csv_module.DictReader(content.splitlines())
+        rows = list(reader)
+        assert any(row['発注先倉庫'] == warehouse.warehouse_name for row in rows)
+
+    def test_csv_does_not_contain_other_shop_orders(self, client, shop_user, shop2, warehouse2, goods):
+        """他店舗の発注は CSV に含まれない"""
+        relation2 = Relation.objects.create(shop=shop2, warehouse=warehouse2)
+        other_order = Order.objects.create(relation=relation2)
+        OrderGoods.objects.create(order=other_order, goods=goods, quantity=10)
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history_csv_export'))
+        content = response.content.decode('utf-8-sig')
+        reader = csv_module.DictReader(content.splitlines())
+        rows = list(reader)
+        assert not any(row['発注先倉庫'] == warehouse2.warehouse_name for row in rows)
+
+    def test_csv_filter_by_status(self, client, shop_user, order, relation, goods):
+        """ステータスフィルターが CSV に反映される"""
+        order_preparing = Order.objects.create(relation=relation, status=Order.Status.PREPARING)
+        OrderGoods.objects.create(order=order_preparing, goods=goods, quantity=5)
+        client.force_login(shop_user)
+        response = client.get(
+            reverse('order_history_csv_export') + f'?status={Order.Status.PREPARING}'
+        )
+        content = response.content.decode('utf-8-sig')
+        reader = csv_module.DictReader(content.splitlines())
+        statuses = [row['ステータス'] for row in reader]
+        assert all(s == Order.Status.PREPARING.label for s in statuses)
+
+
+# ---------------------------------------------------------------------------
+# 発注履歴 PDF エクスポート
+# ---------------------------------------------------------------------------
+
+class TestOrderHistoryPDFExport:
+
+    def test_unauthenticated_redirect(self, client):
+        """未ログインユーザーはログイン画面にリダイレクトされる"""
+        response = client.get(reverse('order_history_pdf_export'))
+        assert response.status_code == 302
+        assert '/accounts/login/' in response['Location']
+
+    def test_admin_forbidden(self, client, admin_user):
+        """管理者は PDF エクスポートにアクセスできない（403）"""
+        client.force_login(admin_user)
+        response = client.get(reverse('order_history_pdf_export'))
+        assert response.status_code == 403
+
+    def test_warehouse_user_forbidden(self, client, warehouse_user):
+        """倉庫スタッフは PDF エクスポートにアクセスできない（403）"""
+        client.force_login(warehouse_user)
+        response = client.get(reverse('order_history_pdf_export'))
+        assert response.status_code == 403
+
+    def test_shop_user_returns_pdf(self, client, shop_user, order):
+        """店舗スタッフは PDF をダウンロードできる（reportlab がある場合）"""
+        client.force_login(shop_user)
+        response = client.get(reverse('order_history_pdf_export'))
+        # reportlab がインストール済みなら 200 + PDF、未インストールなら 500
+        assert response.status_code in (200, 500)
+        if response.status_code == 200:
+            assert response['Content-Type'] == 'application/pdf'

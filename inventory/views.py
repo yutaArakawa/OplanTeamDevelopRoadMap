@@ -672,7 +672,8 @@ class OrderHistoryCSVExportView(ShopStaffRequiredMixin, View):
         orders = services.order_filter_by_date_and_status(orders, date_from, date_to, selected_status)
         rows   = services.build_rows(orders)
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response.write('﻿')  # BOM の書き込み（Excel での文字化け防止）
         filename = "発注履歴.csv"
         response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
 
@@ -683,7 +684,7 @@ class OrderHistoryCSVExportView(ShopStaffRequiredMixin, View):
             order = row['order']
             og    = row['order_goods']
             writer.writerow([
-                order.relation.shop.shop_name,
+                order.relation.warehouse.warehouse_name,
                 og.goods.goods_name if og else '',
                 og.quantity         if og else '',
                 order.get_status_display(),
@@ -732,17 +733,17 @@ class OrderHistoryPDFExportView(ShopStaffRequiredMixin, View):
         title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
 
         elements = []
-        elements.append(Paragraph('受注管理一覧', title_style))
+        elements.append(Paragraph('発注履歴一覧', title_style))
         elements.append(Spacer(1, 12))
 
-        header = ['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
+        header = ['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
         table_data = [[Paragraph(h, jp_style) for h in header]]
 
         for row in rows:
             order = row['order']
             og    = row['order_goods']
             table_data.append([
-                Paragraph(order.relation.shop.shop_name,          jp_style),
+                Paragraph(order.relation.warehouse.warehouse_name, jp_style),
                 Paragraph(og.goods.goods_name if og else '',       jp_style),
                 Paragraph(str(og.quantity)    if og else '',       jp_style),
                 Paragraph(order.get_status_display(),              jp_style),

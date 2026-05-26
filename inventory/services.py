@@ -1,5 +1,5 @@
 from django.db.models import Prefetch
-from inventory.models import Goods, GoodsCategory, Relation, Warehouse, Shop, WarehouseStock, Order, OrderGoods
+from inventory.models import Order, OrderGoods
 
 # 店舗の注文履歴データを取得するサービス関数
 def get_order_history_data(shop):
