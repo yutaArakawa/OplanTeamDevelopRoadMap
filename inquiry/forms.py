@@ -12,7 +12,7 @@ class InquiryCreateForm(forms.ModelForm):
         model = Inquiry
         fields = ['to_authority', 'to_relation', 'inquiry_title', 'inquiry_details']
 
-    def __init__(self, *args, login_user=None, **kwargs):
+    def __init__(self, *args, login_user=None, relation_id=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.login_user = login_user
 
@@ -36,15 +36,29 @@ class InquiryCreateForm(forms.ModelForm):
 
             # to_relation: ログインユーザーの所属に連携している Relation のみ
             if login_user.authority_id == AUTHORITY_SHOP:
-                self.fields['to_relation'].queryset = Relation.active_objects.filter(
+                qs = Relation.active_objects.filter(
                     shop=login_user.shop
-                )
+                ).select_related('warehouse')
+                self.fields['to_relation'].queryset = qs
+                self.fields['to_relation'].label_from_instance = lambda obj: f"{obj.warehouse.warehouse_name}"
             elif login_user.authority_id == AUTHORITY_WAREHOUSE:
-                self.fields['to_relation'].queryset = Relation.active_objects.filter(
+                qs = Relation.active_objects.filter(
                     warehouse=login_user.warehouse
-                )
+                ).select_related('shop')
+                self.fields['to_relation'].queryset = qs
+                self.fields['to_relation'].label_from_instance = lambda obj: f"{obj.shop.shop_name}"
             else:
                 self.fields['to_relation'].queryset = Relation.objects.none()
+            
+            if relation_id:
+                relation = Relation.active_objects.filter(pk=relation_id).first()
+                if relation:
+                    if login_user.authority_id == AUTHORITY_SHOP and relation.shop == login_user.shop:
+                        self.initial['to_authority'] = AUTHORITY_WAREHOUSE
+                        self.initial['to_relation'] = relation.pk
+                    elif login_user.authority_id == AUTHORITY_WAREHOUSE and relation.warehouse == login_user.warehouse:
+                        self.initial['to_authority'] = AUTHORITY_SHOP
+                        self.initial['to_relation'] = relation.pk
 
     def clean(self):
         cleaned_data = super().clean()
