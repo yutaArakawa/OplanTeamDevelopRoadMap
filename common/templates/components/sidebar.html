@@ -33,7 +33,9 @@
             <a href="{% url 'order_goods_list' %}" class="list-group-item list-group-item-action">
                 商品発注
             </a>
-            <li>発注履歴</li>
+            <a href="{% url 'order_history' %}" class="list-group-item list-group-item-action">
+                発注履歴
+            </a>
             {% endif %}
             {% if request.user.authority_id == 3 %}
             <a href="{% url 'warehouse_stock_list' %}" class="list-group-item list-group-item-action">

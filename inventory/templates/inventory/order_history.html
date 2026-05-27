@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}発注履歴{% endblock %}
+
+{% block content %}
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label for="date_from" class="form-label">発注日（開始）</label>
+        <input
+          type="date" id="date_from" name="date_from"
+          class="form-control"
+          value="{{ date_from }}">
+      </div>
+      <div class="col-md-3">
+        <label for="date_to" class="form-label">発注日（終了）</label>
+        <input
+          type="date" id="date_to" name="date_to"
+          class="form-control"
+          value="{{ date_to }}">
+      </div>
+      <div class="col-md-3">
+        <label for="status" class="form-label">ステータス</label>
+        <select id="status" name="status" class="form-select">
+          <option value="">すべて</option>
+          {% for value, label in status_choices %}
+          <option value="{{ value }}"
+            {% if selected_status == value|stringformat:"s" %}selected{% endif %}>
+            {{ label }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-outline-primary">絞り込む</button>
+        <a href="{% url 'order_history' %}" class="btn btn-outline-secondary ms-1">リセット</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="d-flex justify-content-end gap-2 mb-3">
+  <a href="{% url 'order_history_csv_export' %}?{{ request.GET.urlencode }}"
+     class="btn btn-outline-success">
+    CSVエクスポート
+  </a>
+  <a href="{% url 'order_history_pdf_export' %}?{{ request.GET.urlencode }}"
+     class="btn btn-outline-danger">
+    PDFダウンロード
+  </a>
+</div>
+
+{# ──────────────── 発注一覧テーブル ──────────────── #}
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <table class="table table-bordered align-middle mb-0">
+      <thead class="table-success">
+        <tr>
+          <th>発注先倉庫</th>
+          <th>商品名</th>
+          <th class="text-end">発注個数</th>
+          <th>ステータス</th>
+          <th>発注日時</th>
+          <th>更新日時</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          {# 注文レベル項目（最初の行のみ rowspan で表示） #}
+          {% if row.is_first %}
+          <td rowspan="{{ row.goods_count }}" class="align-middle fw-semibold">
+            {{ row.order.relation.warehouse.warehouse_name }}
+          </td>
+          {% endif %}
+
+          {# 商品レベル項目 #}
+          {% if row.order_goods %}
+          <td>{{ row.order_goods.goods.goods_name }}</td>
+          <td class="text-end">{{ row.order_goods.quantity }}</td>
+          {% else %}
+          <td colspan="2" class="text-muted text-center">商品なし</td>
+          {% endif %}
+
+          {# ステータス・日時（最初の行のみ rowspan で表示） #}
+          {% if row.is_first %}
+          <td rowspan="{{ row.goods_count }}" class="align-middle">
+            {{ row.order.get_status_display }}
+          </td>
+
+          <td rowspan="{{ row.goods_count }}" class="align-middle text-nowrap">
+            {{ row.order.ordered_at|date:"Y-m-d H:i" }}
+          </td>
+          <td rowspan="{{ row.goods_count }}" class="align-middle text-nowrap">
+            {{ row.order.updated_at|date:"Y-m-d H:i" }}
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-4">発注データはありません</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

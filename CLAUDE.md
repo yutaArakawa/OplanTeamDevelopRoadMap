@@ -61,9 +61,6 @@ This is a Django inventory/stock management system for a multi-location retail b
 2. **発注画面** (`/order_create/<goods_pk>/`, `OrderCreateView`) — Shop staff inputs per-warehouse order quantities. On POST, creates one `Order` per warehouse where `quantity > 0`, each with a linked `OrderGoods` record.
 3. **CSV一括発注ダウンロード** (`/order_csv_download/`, `OrderCsvDownloadView`) — Downloads a CSV template pre-filled with related-warehouse stock data (columns: 倉庫ID, 倉庫名, カテゴリ, 商品ID, 商品名, 現在の在庫数, 発注数). The 発注数 column is left blank.
 4. **CSV一括発注インポート** (`/order_csv_import/`, `OrderCsvImportView`) — Accepts the filled-in CSV via POST. Rows with blank or zero 発注数 are skipped. Multiple goods for the same warehouse are grouped under a single `Order` (one `Order` per warehouse per import).
-5. **発注履歴** (`/order_history/`, `OrderHistoryView`) — Lists all orders placed by the shop, grouped per order with related goods. Supports date range and status filter. Business logic (queryset + filter) lives in `inventory/services.py`.
-6. **発注履歴 CSV エクスポート** (`/order_history/export/csv/`, `OrderHistoryCSVExportView`) — Downloads order history as a UTF-8 BOM CSV. BOM is written manually with `response.write('﻿')`; do NOT use `charset=utf-8-sig` (it adds a BOM on every `write()` call, corrupting the file).
-7. **発注履歴 PDF エクスポート** (`/order_history/export/pdf/`, `OrderHistoryPDFExportView`) — Downloads order history as a PDF using reportlab with the HeiseiKakuGo-W5 Japanese font.
 
 **Inquiry flow:**
 
@@ -73,13 +70,19 @@ This is a Django inventory/stock management system for a multi-location retail b
 - **問い合わせ詳細・ステータス更新** (`/inquiry/<pk>/`, `InquiryDetailView`) — Receiver can update status (未対応/対応中/対応済み); sender can view only.
 - **論理削除** (`/inquiry/<pk>/delete/`, `InquiryDeleteView`) — Sender or receiver can soft-delete (`delete_flg=True`).
 
+**Shop staff order history flow:**
+
+5. **発注履歴画面** (`order_history`, `OrderHistoryView`) — Shop staff views their own order history, grouped per order with related goods. Supports filtering by date range and status. Uses `services.get_order_history_data(shop)` and `services.build_rows(orders)` for shared query/row logic.
+6. **発注履歴CSVエクスポート** (`order_history_csv_export`, `OrderHistoryCSVExportView`) — Downloads order history as CSV with date/status filter applied. Columns: 発注先倉庫, 商品名, 発注個数, ステータス, 発注日時, 更新日時. BOM is written manually with `response.write('﻿')` using `charset=utf-8`; do NOT use `charset=utf-8-sig`.
+7. **発注履歴PDFエクスポート** (`order_history_pdf_export`, `OrderHistoryPDFExportView`) — Downloads order history as PDF using reportlab with the HeiseiKakuGo-W5 Japanese font.
+
 **Key patterns:**
 
 - **Soft delete**: All models inherit from `BaseModel` which has `delete_flg`. Use `Model.active_objects` (filters `delete_flg=False`) for normal queries; `Model.objects` gives all records including deleted.
 - **Role-based access**: Three roles defined in `common/constants.py` — `AUTHORITY_ADMIN=1`, `AUTHORITY_SHOP=2`, `AUTHORITY_WAREHOUSE=3`. Access control uses mixins in `common/mixins.py` (`AdminRequiredMixin`, `ShopStaffRequiredMixin`, `WarehouseStaffRequiredMixin`). Constants are injected into every template via the `authority_constants` context processor.
 - **User constraints**: Shop staff (`authority_id=2`) must have a `shop` FK; warehouse staff (`authority_id=3`) must have a `warehouse` FK. This is enforced in `User.clean()`.
 - **Cross-app FK references**: `accounts.User` references `inventory.Warehouse` and `inventory.Shop` by string (`'inventory.Warehouse'`). `dashboard.MonthlyOrderSummary` references `inventory` models similarly. Avoid circular imports by using string-form FK targets.
-- **services.py**: Shared business logic that is used by multiple views lives in `<app>/services.py`. Views handle only HTTP (request parsing, rendering, redirect); services contain queryset building, filtering, and data transformation. Example: `inventory/services.py` contains `get_order_history_data()`, `order_filter_by_date_and_status()`, and `build_rows()` used by `OrderHistoryView`, `OrderHistoryCSVExportView`, and `OrderHistoryPDFExportView`.
+- **services.py**: Shared business logic that is used by multiple views lives in `<app>/services.py`. Views handle only HTTP (request parsing, rendering, redirect); services contain queryset building, filtering, and data transformation. Example: `inventory/services.py` contains `get_order_history_data()`, `order_filter_by_date_and_status()`, and `build_rows()` used by `OrderHistoryView`, `OrderHistoryCSVExportView`, and `OrderHistoryPDFExportView`. CSV exports write BOM manually with `response.write('﻿')` using `charset=utf-8` (NOT `charset=utf-8-sig`, which would insert a BOM on every `write()` call and corrupt the file).
 - **label_from_instance**: Use `field.label_from_instance = lambda obj: ...` on a `ModelChoiceField` to customise the display text of each choice without subclassing the field. Set this after assigning `queryset`.
 - **Form pre-population via query param**: Pass data from a list page to a create form by appending a query parameter to the URL (e.g. `?relation=<id>`). The view reads `request.GET.get('relation')` and passes it to the form's `__init__`; the form sets `self.initial[field]` to pre-fill specific fields.
 
