@@ -250,9 +250,20 @@ class Relation(BaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=['warehouse', 'shop'],
-                name='unique_warehouse_shop'
+                condition=models.Q(delete_flg=False),
+                name='unique_active_warehouse_shop'
             )
         ]
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
+    def has_related_records(self):
+        return (
+            self.order_set.filter(delete_flg=False).exists()
+            or self.inquiry_set.filter(delete_flg=False).exists()
+        )
 
     def __str__(self):
         return f'{self.warehouse} - {self.shop}'
