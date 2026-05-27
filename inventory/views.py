@@ -476,6 +476,22 @@ class RelationCreateView(AdminRequiredMixin, CreateView):
         messages.success(self.request, '連携倉庫を登録しました。')
         return response
 
+
+class RelationDeleteView(AdminRequiredMixin, View):
+    def post(self, request, pk):
+        relation = get_object_or_404(Relation.active_objects, pk=pk)
+
+        if relation.has_related_records():
+            messages.error(
+                request,
+                '発注または問い合わせに紐づく連携情報は削除できません。'
+            )
+            return redirect(request.POST.get('next') or reverse('relation_list'))
+
+        relation.soft_delete()
+        messages.success(request, '連携情報を削除しました。')
+        return redirect(request.POST.get('next') or reverse('relation_list'))
+
 class OrderGoodsListView(ShopStaffRequiredMixin, ListView):
     template_name = 'inventory/order_goods_list.html'
     context_object_name = 'order_goods_list'
