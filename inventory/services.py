@@ -52,7 +52,7 @@ def get_goods_by_goods_id(goods_id):
 
 # 店舗と商品から店舗在庫データを取得するサービス関数
 def get_shop_stock_by_goods_and_shop(goods, shop):
-    return ShopStock.objects.filter(
+    return ShopStock.active_objects.filter(
         goods=goods,
         shop=shop
     ).first()
@@ -66,7 +66,7 @@ def get_shop_stock_list(shop):
     return Goods.active_objects.select_related('goods_category').annotate(
         # レコードがあればそのままstock、なければ0で表示
         stock=Coalesce(
-            Sum('shopstock__stock', filter=Q(shopstock__shop=shop)), 0
+            Sum('shopstock__stock', filter=Q(shopstock__shop=shop, shopstock__delete_flg=False)), 0
         )
     )
 

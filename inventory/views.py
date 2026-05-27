@@ -389,9 +389,9 @@ class ShopStockListView(ShopStaffRequiredMixin, TemplateView):
         return context
 
 class ShopStockEditView(ShopStaffRequiredMixin, TemplateView):
-    model = ShopStock
     template_name = 'inventory/shop_stock_edit.html'
-    success_url = reverse_lazy('shop_stock_list')
+    page_title = '店舗在庫編集'
+    submit_label = '更新'
 
     def get(self, request, *args, **kwargs):
         goods = services.get_goods_by_goods_id(kwargs['goods_pk'])
@@ -401,8 +401,8 @@ class ShopStockEditView(ShopStaffRequiredMixin, TemplateView):
         context = self.get_context_data(**kwargs)
         context['form'] = form
         context['goods'] = goods
-        context['page_title'] = '店舗在庫編集'
-        context['submit_label'] = '更新'
+        context['page_title'] = self.page_title
+        context['submit_label'] = self.submit_label
         return render(request, self.template_name, context)
 
     def post(self, request, *args, **kwargs):
@@ -412,7 +412,12 @@ class ShopStockEditView(ShopStaffRequiredMixin, TemplateView):
             stock_value = form.cleaned_data['stock']
             services.update_or_create_shop_stock(goods, request.user.shop, stock_value)
             return redirect('shop_stock_list')
-        return render(request, self.template_name, {'form': form, 'goods': goods})
+        return render(request, self.template_name, {
+            'form': form,
+            'goods': goods,
+            'page_title': self.page_title,
+            'submit_label': self.submit_label
+        })
 
 class WarehouseStockListView(WarehouseStaffRequiredMixin, TemplateView):
     template_name = 'inventory/warehouse_stock_list.html'
