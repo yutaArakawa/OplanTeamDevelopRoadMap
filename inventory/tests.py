@@ -4,7 +4,7 @@ import csv as csv_module
 import pytest
 from django.contrib.messages import get_messages
 from django.urls import reverse
-from inventory.models import GoodsCategory, Goods, WarehouseStock, Order, OrderGoods, Relation
+from inventory.models import GoodsCategory, Goods, Shop, Warehouse, WarehouseStock, Order, OrderGoods, Relation
 
 pytestmark = pytest.mark.django_db
 
@@ -760,3 +760,183 @@ class TestOrderHistoryPDFExport:
         assert response.status_code in (200, 500)
         if response.status_code == 200:
             assert response['Content-Type'] == 'application/pdf'
+
+
+# ---------------------------------------------------------------------------
+# 店舗削除
+# ---------------------------------------------------------------------------
+
+class TestShopDelete:
+
+    def test_unauthenticated_redirect(self, client, shop):
+        """未ログインユーザーはログイン画面にリダイレクトされる"""
+        response = client.post(reverse('shop_delete', kwargs={'pk': shop.pk}))
+        assert response.status_code == 302
+        assert '/accounts/login/' in response['Location']
+
+    def test_shop_user_forbidden(self, client, shop_user, shop):
+        """店舗スタッフは店舗削除にアクセスできない（403）"""
+        client.force_login(shop_user)
+        response = client.post(reverse('shop_delete', kwargs={'pk': shop.pk}))
+        assert response.status_code == 403
+
+    def test_warehouse_user_forbidden(self, client, warehouse_user, shop):
+        """倉庫スタッフは店舗削除にアクセスできない（403）"""
+        client.force_login(warehouse_user)
+        response = client.post(reverse('shop_delete', kwargs={'pk': shop.pk}))
+        assert response.status_code == 403
+
+    def test_admin_can_delete_shop(self, client, admin_user, shop):
+        """管理者は連携情報・所属ユーザー等が存在しない店舗を削除できる"""
+        client.force_login(admin_user)
+        response = client.post(reverse('shop_delete', kwargs={'pk': shop.pk}))
+        assert response.status_code == 302
+        shop.refresh_from_db()
+        assert shop.delete_flg is True
+
+    def test_delete_success_message(self, client, admin_user, shop):
+        """削除成功時にフラッシュメッセージが表示される"""
+        client.force_login(admin_user)
+        response = client.post(reverse('shop_delete', kwargs={'pk': shop.pk}))
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('削除しました' in str(m) for m in msgs)
+
+    def test_delete_redirects_to_shop_list(self, client, admin_user, shop):
+        """削除後は店舗一覧にリダイレクトされる"""
+        client.force_login(admin_user)
+        response = client.post(reverse('shop_delete', kwargs={'pk': shop.pk}))
+        assert response.url == reverse('shop_list')
+
+    def test_cannot_delete_shop_with_relation(self, client, admin_user, shop, relation):
+        """連携情報に紐づく店舗は削除できない"""
+        client.force_login(admin_user)
+        response = client.post(reverse('shop_delete', kwargs={'pk': shop.pk}))
+        shop.refresh_from_db()
+        assert shop.delete_flg is False
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('削除できません' in str(m) for m in msgs)
+
+    def test_cannot_delete_shop_with_user(self, client, admin_user, shop, shop_user):
+        """所属ユーザーに紐づく店舗は削除できない"""
+        client.force_login(admin_user)
+        response = client.post(reverse('shop_delete', kwargs={'pk': shop.pk}))
+        shop.refresh_from_db()
+        assert shop.delete_flg is False
+
+    def test_delete_with_next_param_redirects(self, client, admin_user, shop):
+        """next パラメータがある場合そちらにリダイレクトされる"""
+        client.force_login(admin_user)
+        response = client.post(
+            reverse('shop_delete', kwargs={'pk': shop.pk}),
+            {'next': reverse('shop_list')},
+        )
+        assert response.url == reverse('shop_list')
+
+    def test_get_not_found_for_deleted_shop(self, client, admin_user, shop):
+        """論理削除済みの店舗に対する削除リクエストは 404 になる"""
+        shop.delete_flg = True
+        shop.save()
+        client.force_login(admin_user)
+        response = client.post(reverse('shop_delete', kwargs={'pk': shop.pk}))
+        assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# 連携情報削除
+# ---------------------------------------------------------------------------
+
+class TestRelationDelete:
+
+    def test_unauthenticated_redirect(self, client, relation):
+        """未ログインユーザーはログイン画面にリダイレクトされる"""
+        response = client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        assert response.status_code == 302
+        assert '/accounts/login/' in response['Location']
+
+    def test_shop_user_forbidden(self, client, shop_user, relation):
+        """店舗スタッフは連携情報削除にアクセスできない（403）"""
+        client.force_login(shop_user)
+        response = client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        assert response.status_code == 403
+
+    def test_warehouse_user_forbidden(self, client, warehouse_user, relation):
+        """倉庫スタッフは連携情報削除にアクセスできない（403）"""
+        client.force_login(warehouse_user)
+        response = client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        assert response.status_code == 403
+
+    def test_admin_can_delete_relation(self, client, admin_user, relation):
+        """管理者は発注・問い合わせが存在しない連携情報を削除できる"""
+        client.force_login(admin_user)
+        response = client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        assert response.status_code == 302
+        relation.refresh_from_db()
+        assert relation.delete_flg is True
+
+    def test_delete_success_message(self, client, admin_user, relation):
+        """削除成功時にフラッシュメッセージが表示される"""
+        client.force_login(admin_user)
+        response = client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('削除しました' in str(m) for m in msgs)
+
+    def test_delete_redirects_to_relation_list(self, client, admin_user, relation):
+        """削除後は連携情報一覧にリダイレクトされる"""
+        client.force_login(admin_user)
+        response = client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        assert response.url == reverse('relation_list')
+
+    def test_cannot_delete_relation_with_active_order(self, client, admin_user, relation, goods):
+        """発注が紐づく連携情報は削除できない"""
+        order = Order.objects.create(relation=relation)
+        OrderGoods.objects.create(order=order, goods=goods, quantity=1)
+        client.force_login(admin_user)
+        response = client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        relation.refresh_from_db()
+        assert relation.delete_flg is False
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('削除できません' in str(m) for m in msgs)
+
+    def test_cannot_delete_relation_with_active_inquiry(self, client, admin_user, relation, inquiry_to_warehouse):
+        """問い合わせが紐づく連携情報は削除できない"""
+        client.force_login(admin_user)
+        response = client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        relation.refresh_from_db()
+        assert relation.delete_flg is False
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('削除できません' in str(m) for m in msgs)
+
+    def test_delete_with_next_param_redirects(self, client, admin_user, relation):
+        """next パラメータがある場合そちらにリダイレクトされる"""
+        client.force_login(admin_user)
+        response = client.post(
+            reverse('relation_delete', kwargs={'pk': relation.pk}),
+            {'next': reverse('relation_list')},
+        )
+        assert response.url == reverse('relation_list')
+
+    def test_get_not_found_for_deleted_relation(self, client, admin_user, relation):
+        """論理削除済みの連携情報に対する削除リクエストは 404 になる"""
+        relation.soft_delete()
+        client.force_login(admin_user)
+        response = client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        assert response.status_code == 404
+
+    def test_deleted_relation_excluded_from_active_objects(self, client, admin_user, relation):
+        """削除後は active_objects に含まれない"""
+        client.force_login(admin_user)
+        client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        assert not Relation.active_objects.filter(pk=relation.pk).exists()
+
+    def test_can_recreate_relation_after_delete(self, client, admin_user, shop, warehouse, relation):
+        """削除後に同じ店舗・倉庫の組み合わせで再連携できる"""
+        # 削除
+        client.force_login(admin_user)
+        client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        # 再連携
+        response = client.post(
+            reverse('relation_create'),
+            {'shop': shop.pk, 'warehouse': warehouse.pk},
+        )
+        assert response.status_code == 302
+        assert Relation.active_objects.filter(shop=shop, warehouse=warehouse).exists()
