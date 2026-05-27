@@ -119,7 +119,8 @@ class InquiryCreateView(NonAdminRequiredMixin, View):
     success_url = reverse_lazy('inquiry_list')
 
     def get(self, request, *args, **kwargs):
-        form = InquiryCreateForm(login_user=request.user)
+        relation_id = request.GET.get('relation')
+        form = InquiryCreateForm(login_user=request.user, relation_id=relation_id)
         return render(request, self.template_name, {'form': form})
 
     def post(self, request, *args, **kwargs):
