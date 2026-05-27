@@ -62,12 +62,19 @@ This is a Django inventory/stock management system for a multi-location retail b
 3. **CSV一括発注ダウンロード** (`/order_csv_download/`, `OrderCsvDownloadView`) — Downloads a CSV template pre-filled with related-warehouse stock data (columns: 倉庫ID, 倉庫名, カテゴリ, 商品ID, 商品名, 現在の在庫数, 発注数). The 発注数 column is left blank.
 4. **CSV一括発注インポート** (`/order_csv_import/`, `OrderCsvImportView`) — Accepts the filled-in CSV via POST. Rows with blank or zero 発注数 are skipped. Multiple goods for the same warehouse are grouped under a single `Order` (one `Order` per warehouse per import).
 
+**Shop staff order history flow:**
+
+5. **発注履歴画面** (`/inventory/order_history/`, `OrderHistoryView`) — Shop staff views their own order history. Supports filtering by date range and status. Uses `services.get_order_history_data(shop)` and `services.build_rows(orders)` for shared query/row logic.
+6. **発注履歴CSVエクスポート** (`/inventory/order_history/export/csv/`, `OrderHistoryCSVExportView`) — Downloads order history as CSV with date/status filter applied. Columns: 発注先倉庫, 商品名, 発注個数, ステータス, 発注日時, 更新日時.
+7. **発注履歴PDFエクスポート** (`/inventory/order_history/export/pdf/`, `OrderHistoryPDFExportView`) — Downloads order history as PDF using reportlab. Returns 500 if reportlab is not installed.
+
 **Key patterns:**
 
 - **Soft delete**: All models inherit from `BaseModel` which has `delete_flg`. Use `Model.active_objects` (filters `delete_flg=False`) for normal queries; `Model.objects` gives all records including deleted.
 - **Role-based access**: Three roles defined in `common/constants.py` — `AUTHORITY_ADMIN=1`, `AUTHORITY_SHOP=2`, `AUTHORITY_WAREHOUSE=3`. Access control uses mixins in `common/mixins.py` (`AdminRequiredMixin`, `ShopStaffRequiredMixin`, `WarehouseStaffRequiredMixin`). Constants are injected into every template via the `authority_constants` context processor.
 - **User constraints**: Shop staff (`authority_id=2`) must have a `shop` FK; warehouse staff (`authority_id=3`) must have a `warehouse` FK. This is enforced in `User.clean()`.
 - **Cross-app FK references**: `accounts.User` references `inventory.Warehouse` and `inventory.Shop` by string (`'inventory.Warehouse'`). `dashboard.MonthlyOrderSummary` references `inventory` models similarly. Avoid circular imports by using string-form FK targets.
+- **Service layer**: `inventory/services.py` holds shared business logic (DB queries, row building) used by multiple views. Views handle HTTP only; services handle data. CSV exports write BOM manually with `response.write('﻿')` using `charset=utf-8` (NOT `charset=utf-8-sig`, which would insert a BOM on every `write()` call and corrupt the file).
 
 **Database:** MySQL in Docker (`stockdb`). CI uses SQLite (controlled by the `CI` environment variable in `config/settings.py`).
 
