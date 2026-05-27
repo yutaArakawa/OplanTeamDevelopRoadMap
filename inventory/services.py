@@ -1,5 +1,7 @@
-from django.db.models import Prefetch
-from inventory.models import Order, OrderGoods
+from django.db.models import Prefetch, Q, Sum
+from django.db.models.functions import Coalesce
+from django.shortcuts import get_object_or_404
+from inventory.models import Order, OrderGoods, Goods, GoodsCategory, ShopStock
 
 # 店舗の注文履歴データを取得するサービス関数
 def get_order_history_data(shop):
@@ -43,3 +45,35 @@ def build_rows(orders):
             for i, og in enumerate(goods_list):
                 rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count})
     return rows
+
+# 商品IDから商品データを取得するサービス関数
+def get_goods_by_goods_id(goods_id):
+    return get_object_or_404(Goods, pk=goods_id)
+
+# 店舗と商品から店舗在庫データを取得するサービス関数
+def get_shop_stock_by_goods_and_shop(goods, shop):
+    return ShopStock.objects.filter(
+        goods=goods,
+        shop=shop
+    ).first()
+
+# 商品カテゴリの選択肢を取得するサービス関数
+def get_goods_categories():
+    return GoodsCategory.active_objects.all()
+
+# 店舗の商品在庫を取得するサービス関数
+def get_shop_stock_list(shop):
+    return Goods.active_objects.select_related('goods_category').annotate(
+        # レコードがあればそのままstock、なければ0で表示
+        stock=Coalesce(
+            Sum('shopstock__stock', filter=Q(shopstock__shop=shop)), 0
+        )
+    )
+
+# 店舗在庫を更新または作成するサービス関数
+def update_or_create_shop_stock(goods, shop, stock_value):
+    ShopStock.objects.update_or_create(
+        goods=goods,
+        shop=shop,
+        defaults={'stock': stock_value}
+    )
