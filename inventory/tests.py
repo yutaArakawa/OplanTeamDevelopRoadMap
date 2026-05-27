@@ -927,3 +927,16 @@ class TestRelationDelete:
         client.force_login(admin_user)
         client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
         assert not Relation.active_objects.filter(pk=relation.pk).exists()
+
+    def test_can_recreate_relation_after_delete(self, client, admin_user, shop, warehouse, relation):
+        """削除後に同じ店舗・倉庫の組み合わせで再連携できる"""
+        # 削除
+        client.force_login(admin_user)
+        client.post(reverse('relation_delete', kwargs={'pk': relation.pk}))
+        # 再連携
+        response = client.post(
+            reverse('relation_create'),
+            {'shop': shop.pk, 'warehouse': warehouse.pk},
+        )
+        assert response.status_code == 302
+        assert Relation.active_objects.filter(shop=shop, warehouse=warehouse).exists()

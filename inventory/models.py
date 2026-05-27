@@ -250,7 +250,8 @@ class Relation(BaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=['warehouse', 'shop'],
-                name='unique_warehouse_shop'
+                condition=models.Q(delete_flg=False),
+                name='unique_active_warehouse_shop'
             )
         ]
 
