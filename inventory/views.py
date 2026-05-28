@@ -19,11 +19,12 @@ from inventory.forms import (
     GoodsCreateForm,
     RelationForm,
     ShopForm,
+    ShopStockEditForm,
     WarehouseCreateForm,
     WarehouseStockEditForm,
     OrderForm
 )
-from inventory.models import Goods, GoodsCategory, Relation, Warehouse, Shop, WarehouseStock, Order, OrderGoods
+from inventory.models import Goods, GoodsCategory, Relation, Warehouse, Shop, WarehouseStock, ShopStock, Order, OrderGoods
 from inventory import services
 
 from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
@@ -368,6 +369,55 @@ class ShopDeleteView(AdminRequiredMixin, View):
         shop.soft_delete()
         messages.success(request, '店舗を削除しました。')
         return redirect(request.POST.get('next') or reverse('shop_list'))
+
+class ShopStockListView(ShopStaffRequiredMixin, TemplateView):
+    template_name = 'inventory/shop_stock_list.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        shop_stock_list = services.get_shop_stock_list(self.request.user.shop)
+        categories = services.get_goods_categories()
+
+        category_query = self.request.GET.get('category')
+        if category_query:
+            shop_stock_list = shop_stock_list.filter(goods_category_id=category_query)
+
+        context['selected_category'] = category_query
+        context['categories'] = categories
+        shop_stock_list = shop_stock_list.order_by('goods_name')
+        context['shop_stock_list'] = shop_stock_list
+        return context
+
+class ShopStockEditView(ShopStaffRequiredMixin, TemplateView):
+    template_name = 'inventory/shop_stock_edit.html'
+    page_title = '店舗在庫編集'
+    submit_label = '更新'
+
+    def get(self, request, *args, **kwargs):
+        goods = services.get_goods_by_goods_id(kwargs['goods_pk'])
+        # レコードがあればそのままstock、なければ0で表示
+        shop_stock = services.get_shop_stock_by_goods_and_shop(goods, request.user.shop)
+        form = ShopStockEditForm(instance=shop_stock)
+        context = self.get_context_data(**kwargs)
+        context['form'] = form
+        context['goods'] = goods
+        context['page_title'] = self.page_title
+        context['submit_label'] = self.submit_label
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        goods = services.get_goods_by_goods_id(kwargs['goods_pk'])
+        form = ShopStockEditForm(request.POST)
+        if form.is_valid():
+            stock_value = form.cleaned_data['stock']
+            services.update_or_create_shop_stock(goods, request.user.shop, stock_value)
+            return redirect('shop_stock_list')
+        return render(request, self.template_name, {
+            'form': form,
+            'goods': goods,
+            'page_title': self.page_title,
+            'submit_label': self.submit_label
+        })
 
 class WarehouseStockListView(WarehouseStaffRequiredMixin, TemplateView):
     template_name = 'inventory/warehouse_stock_list.html'

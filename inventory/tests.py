@@ -4,7 +4,7 @@ import csv as csv_module
 import pytest
 from django.contrib.messages import get_messages
 from django.urls import reverse
-from inventory.models import GoodsCategory, Goods, Shop, Warehouse, WarehouseStock, Order, OrderGoods, Relation
+from inventory.models import GoodsCategory, Goods, Shop, ShopStock, Warehouse, WarehouseStock, Order, OrderGoods, Relation
 
 pytestmark = pytest.mark.django_db
 
@@ -559,6 +559,12 @@ class TestOrderCsvImport:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
+def shop_stock(db, goods, shop_user):
+    """shop_user の店舗に紐づく ShopStock（stock=50）"""
+    return ShopStock.objects.create(shop=shop_user.shop, goods=goods, stock=50)
+
+
+@pytest.fixture
 def order(db, relation, goods):
     """shop → warehouse への発注（OrderGoods 付き）"""
     o = Order.objects.create(relation=relation)
@@ -760,6 +766,174 @@ class TestOrderHistoryPDFExport:
         assert response.status_code in (200, 500)
         if response.status_code == 200:
             assert response['Content-Type'] == 'application/pdf'
+
+
+# ---------------------------------------------------------------------------
+# 店舗在庫一覧
+# ---------------------------------------------------------------------------
+
+class TestShopStockList:
+
+    def test_unauthenticated_redirect(self, client):
+        """未ログインユーザーはログイン画面にリダイレクトされる"""
+        response = client.get(reverse('shop_stock_list'))
+        assert response.status_code == 302
+        assert '/accounts/login/' in response['Location']
+
+    def test_admin_forbidden(self, client, admin_user):
+        """管理者は店舗在庫一覧にアクセスできない（403）"""
+        client.force_login(admin_user)
+        response = client.get(reverse('shop_stock_list'))
+        assert response.status_code == 403
+
+    def test_warehouse_user_forbidden(self, client, warehouse_user):
+        """倉庫スタッフは店舗在庫一覧にアクセスできない（403）"""
+        client.force_login(warehouse_user)
+        response = client.get(reverse('shop_stock_list'))
+        assert response.status_code == 403
+
+    def test_shop_user_get_200(self, client, shop_user, goods):
+        """店舗スタッフは店舗在庫一覧を表示できる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_list'))
+        assert response.status_code == 200
+        assert 'shop_stock_list' in response.context
+
+    def test_stock_annotated_zero_without_record(self, client, shop_user, goods):
+        """ShopStock レコードがない商品は在庫数が 0 でアノテートされる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_list'))
+        item = next(g for g in response.context['shop_stock_list'] if g.pk == goods.pk)
+        assert item.stock == 0
+
+    def test_stock_annotated_correctly_with_record(self, client, shop_user, goods, shop_stock):
+        """ShopStock レコードがある商品は正しい在庫数がアノテートされる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_list'))
+        item = next(g for g in response.context['shop_stock_list'] if g.pk == goods.pk)
+        assert item.stock == shop_stock.stock  # 50
+
+    def test_category_filter_includes_matching(self, client, shop_user, goods, goods_category):
+        """カテゴリ絞り込みで一致する商品が表示される"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_list') + f'?category={goods_category.id}')
+        assert response.status_code == 200
+        pks = [g.pk for g in response.context['shop_stock_list']]
+        assert goods.pk in pks
+
+    def test_category_filter_excludes_non_matching(self, client, shop_user, goods):
+        """存在しないカテゴリ ID で絞り込むと商品が表示されない"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_list') + '?category=99999')
+        assert response.status_code == 200
+        assert len(response.context['shop_stock_list']) == 0
+
+
+# ---------------------------------------------------------------------------
+# 店舗在庫編集
+# ---------------------------------------------------------------------------
+
+class TestShopStockEdit:
+
+    def test_unauthenticated_redirect(self, client, goods):
+        """未ログインユーザーはログイン画面にリダイレクトされる"""
+        response = client.get(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}))
+        assert response.status_code == 302
+        assert '/accounts/login/' in response['Location']
+
+    def test_admin_forbidden(self, client, admin_user, goods):
+        """管理者は店舗在庫編集にアクセスできない（403）"""
+        client.force_login(admin_user)
+        response = client.get(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}))
+        assert response.status_code == 403
+
+    def test_warehouse_user_forbidden(self, client, warehouse_user, goods):
+        """倉庫スタッフは店舗在庫編集にアクセスできない（403）"""
+        client.force_login(warehouse_user)
+        response = client.get(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}))
+        assert response.status_code == 403
+
+    def test_shop_user_get_200(self, client, shop_user, goods):
+        """店舗スタッフは店舗在庫編集フォームを表示できる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}))
+        assert response.status_code == 200
+        assert 'form' in response.context
+        assert 'goods' in response.context
+
+    def test_get_shows_goods_name(self, client, shop_user, goods):
+        """編集画面に商品名が表示される"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}))
+        assert goods.goods_name in response.content.decode()
+
+    def test_get_form_has_instance_when_record_exists(self, client, shop_user, goods, shop_stock):
+        """ShopStock レコードがある場合、フォームのインスタンスに既存レコードがセットされる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}))
+        form = response.context['form']
+        assert form.instance.pk == shop_stock.pk
+        assert form.instance.stock == shop_stock.stock
+
+    def test_get_form_has_no_instance_without_record(self, client, shop_user, goods):
+        """ShopStock レコードがない場合、フォームのインスタンスは未保存状態になる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}))
+        form = response.context['form']
+        assert form.instance.pk is None
+
+    def test_nonexistent_goods_returns_404(self, client, shop_user):
+        """存在しない goods_pk を指定すると 404 になる"""
+        client.force_login(shop_user)
+        response = client.get(reverse('shop_stock_edit', kwargs={'goods_pk': 99999}))
+        assert response.status_code == 404
+
+    def test_post_creates_shop_stock_when_no_record(self, client, shop_user, goods):
+        """ShopStock レコードがない状態で POST すると新規作成される"""
+        client.force_login(shop_user)
+        client.post(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}), {'stock': 30})
+        assert ShopStock.objects.filter(goods=goods, shop=shop_user.shop, stock=30).exists()
+
+    def test_post_updates_shop_stock_when_record_exists(self, client, shop_user, goods, shop_stock):
+        """既存の ShopStock レコードがある状態で POST すると在庫数が更新される"""
+        client.force_login(shop_user)
+        client.post(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}), {'stock': 99})
+        shop_stock.refresh_from_db()
+        assert shop_stock.stock == 99
+
+    def test_post_does_not_duplicate_record(self, client, shop_user, goods, shop_stock):
+        """POST を複数回行っても ShopStock レコードが重複して作成されない"""
+        client.force_login(shop_user)
+        client.post(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}), {'stock': 10})
+        client.post(reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}), {'stock': 20})
+        assert ShopStock.objects.filter(goods=goods, shop=shop_user.shop).count() == 1
+
+    def test_post_valid_redirects_to_list(self, client, shop_user, goods):
+        """有効なデータを POST すると店舗在庫一覧にリダイレクトされる"""
+        client.force_login(shop_user)
+        response = client.post(
+            reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}), {'stock': 10}
+        )
+        assert response.status_code == 302
+        assert response.url == reverse('shop_stock_list')
+
+    def test_post_negative_stock_shows_error(self, client, shop_user, goods):
+        """マイナスの在庫数を POST するとバリデーションエラーになる"""
+        client.force_login(shop_user)
+        response = client.post(
+            reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}), {'stock': -1}
+        )
+        assert response.status_code == 200
+        assert response.context['form'].errors
+
+    def test_post_empty_stock_shows_error(self, client, shop_user, goods):
+        """在庫数を空で POST するとバリデーションエラーになる"""
+        client.force_login(shop_user)
+        response = client.post(
+            reverse('shop_stock_edit', kwargs={'goods_pk': goods.pk}), {'stock': ''}
+        )
+        assert response.status_code == 200
+        assert response.context['form'].errors
 
 
 # ---------------------------------------------------------------------------

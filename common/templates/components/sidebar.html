@@ -11,7 +11,7 @@
             <a href="{% url 'user_list' %}" class="list-group-item list-group-item-action">
                 ユーザー管理
             </a>
-            {% if request.user.authority_id == 1 %}
+            {% if request.user.authority_id == AUTHORITY_ADMIN %}
             <a href="{% url 'shop_list' %}" class="list-group-item list-group-item-action">
                 店舗一覧
             </a>
@@ -25,8 +25,10 @@
                 倉庫店舗連携管理
             </a>
             {% endif %}
-            {% if request.user.authority_id == 2 %}
-            <li>店舗在庫管理</li>
+            {% if request.user.authority_id == AUTHORITY_SHOP %}
+            <a href="{% url 'shop_stock_list' %}" class="list-group-item list-group-item-action">
+                店舗在庫管理
+            </a>
             <a href="{% url 'shop_connected_warehouse_list' %}" class="list-group-item list-group-item-action">
                 連携倉庫一覧
             </a>
@@ -37,7 +39,7 @@
                 発注履歴
             </a>
             {% endif %}
-            {% if request.user.authority_id == 3 %}
+            {% if request.user.authority_id == AUTHORITY_WAREHOUSE %}
             <a href="{% url 'warehouse_stock_list' %}" class="list-group-item list-group-item-action">
                 倉庫在庫管理
             </a>
