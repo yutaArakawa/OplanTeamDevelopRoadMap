@@ -1,55 +1,84 @@
-<button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasID" aria-controls="offcanvasID">
+<button class="navbar-toggler border-0" type="button"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#offcanvasSidebar"
+        aria-controls="offcanvasSidebar">
     <span class="navbar-toggler-icon"></span>
 </button>
-<div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasID" aria-labelledby="offcanvasExampleLabel">
-    <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="offcanvasExampleLabel">サイドバー仮</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-    </div>
-    <div class="offcanvas-body">
-        <div class=""list-group>
-            <a href="{% url 'user_list' %}" class="list-group-item list-group-item-action">
-                ユーザー管理
-            </a>
-            {% if request.user.authority_id == AUTHORITY_ADMIN %}
-            <a href="{% url 'shop_list' %}" class="list-group-item list-group-item-action">
-                店舗一覧
-            </a>
-            <a href="{% url 'warehouse_list' %}" class="list-group-item list-group-item-action">
-                倉庫管理
-            </a>
-            <a href="{% url 'goods_list' %}" class="list-group-item list-group-item-action">
-                商品管理
-            </a>
-            <a href="{% url 'relation_list' %}" class="list-group-item list-group-item-action">
-                倉庫店舗連携管理
-            </a>
-            {% endif %}
-            {% if request.user.authority_id == AUTHORITY_SHOP %}
-            <a href="{% url 'shop_stock_list' %}" class="list-group-item list-group-item-action">
-                店舗在庫管理
-            </a>
-            <a href="{% url 'shop_connected_warehouse_list' %}" class="list-group-item list-group-item-action">
-                連携倉庫一覧
-            </a>
-            <a href="{% url 'order_goods_list' %}" class="list-group-item list-group-item-action">
-                商品発注
-            </a>
-            <a href="{% url 'order_history' %}" class="list-group-item list-group-item-action">
-                発注履歴
-            </a>
-            {% endif %}
-            {% if request.user.authority_id == AUTHORITY_WAREHOUSE %}
-            <a href="{% url 'warehouse_stock_list' %}" class="list-group-item list-group-item-action">
-                倉庫在庫管理
-            </a>
-            <a href="{% url 'warehouse_order_list' %}" class="list-group-item list-group-item-action">
-                受注管理
-            </a>
-            {% endif %}
-            <a href="{% url 'inquiry_list' %}" class="list-group-item list-group-item-action">
-                問い合わせ
-            </a>
+
+<div class="offcanvas offcanvas-start"
+     tabindex="-1"
+     id="offcanvasSidebar"
+     aria-labelledby="offcanvasSidebarLabel"
+     style="background: linear-gradient(180deg, #1a2f4b 0%, #2c4a6e 100%); width: 272px;">
+
+    <div class="offcanvas-header py-3" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center justify-content-center rounded-2 fs-5"
+                 style="width:36px; height:36px; background:rgba(255,255,255,0.1);">📦</div>
+            <div>
+                <div class="text-white fw-bold" style="font-size:0.9rem; line-height:1.2;" id="offcanvasSidebarLabel">在庫管理システム</div>
+                <div style="font-size:0.7rem; color:rgba(255,255,255,0.45);">Navigation Menu</div>
+            </div>
         </div>
+        <button type="button" class="btn-close btn-close-white opacity-50"
+                data-bs-dismiss="offcanvas" aria-label="Close" style="font-size:0.75rem;"></button>
+    </div>
+
+    <div class="offcanvas-body p-3">
+        <nav class="d-flex flex-column gap-1">
+            <a href="{% url 'home' %}" class="sidebar-link">
+                <span class="sidebar-icon">🏠</span>ホーム
+            </a>
+            <a href="{% url 'user_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">👤</span>ユーザー管理
+            </a>
+
+            {% if request.user.authority_id == AUTHORITY_ADMIN %}
+            <div class="sidebar-section-label">マスタ管理</div>
+            <a href="{% url 'shop_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">🏪</span>店舗一覧
+            </a>
+            <a href="{% url 'warehouse_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">🏭</span>倉庫管理
+            </a>
+            <a href="{% url 'goods_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">📦</span>商品管理
+            </a>
+            <a href="{% url 'relation_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">🔗</span>倉庫店舗連携管理
+            </a>
+            {% endif %}
+
+            {% if request.user.authority_id == AUTHORITY_SHOP %}
+            <div class="sidebar-section-label">在庫・発注</div>
+            <a href="{% url 'shop_stock_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">📊</span>店舗在庫管理
+            </a>
+            <a href="{% url 'shop_connected_warehouse_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">🔗</span>連携倉庫一覧
+            </a>
+            <a href="{% url 'order_goods_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">🛒</span>商品発注
+            </a>
+            <a href="{% url 'order_history' %}" class="sidebar-link">
+                <span class="sidebar-icon">📋</span>発注履歴
+            </a>
+            {% endif %}
+
+            {% if request.user.authority_id == AUTHORITY_WAREHOUSE %}
+            <div class="sidebar-section-label">在庫・受注</div>
+            <a href="{% url 'warehouse_stock_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">📊</span>倉庫在庫管理
+            </a>
+            <a href="{% url 'warehouse_order_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">📥</span>受注管理
+            </a>
+            {% endif %}
+
+            <hr class="sidebar-divider mt-2 mb-1">
+            <a href="{% url 'inquiry_list' %}" class="sidebar-link">
+                <span class="sidebar-icon">💬</span>問い合わせ
+            </a>
+        </nav>
     </div>
 </div>
