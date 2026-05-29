@@ -26,6 +26,12 @@
 
             <!-- ログインカード -->
             <div class="bg-white rounded-4 p-4 shadow-lg">
+                {% if request.GET.logout %}
+                <div class="alert alert-success py-2 mb-3" role="alert">
+                    ログアウトしました。
+                </div>
+                {% endif %}
+
                 <form method="post" novalidate>
                     {% csrf_token %}
 

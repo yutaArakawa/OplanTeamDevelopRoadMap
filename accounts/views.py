@@ -3,7 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.views import View
 from django.views.generic import ListView, CreateView, UpdateView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from urllib.parse import urlencode
 from accounts.models import User, Authority
 from inventory.models import Shop, Warehouse
@@ -15,6 +15,12 @@ from .forms import LoginForm, UserCreateForm, UserUpdateForm
 class UserLoginView(LoginView):
     template_name = 'accounts/login.html'
     authentication_form = LoginForm
+    redirect_authenticated_user = True
+
+
+class UserLogoutView(LogoutView):
+    def get_default_redirect_url(self):
+        return reverse('login') + '?logout=1'
 
 class UserListView(LoginRequiredMixin, ListView):
     template_name = 'accounts/user_list.html'
