@@ -90,6 +90,26 @@ class Shop(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['shop_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_shop_name'
+            )
+        ]
+
+    def clean(self):
+        duplicate = Shop.active_objects.filter(
+            shop_name=self.shop_name
+        )
+        if self.pk:
+            duplicate = duplicate.exclude(pk=self.pk)
+        if duplicate.exists():
+            raise ValidationError(
+                {'shop_name': '既に店舗名は存在します'}
+            )
+
     def get_full_address(self):
         parts = [
             self.prefecture,

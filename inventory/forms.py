@@ -82,6 +82,14 @@ class ShopForm(forms.ModelForm):
         self.fields['city'].required = True
         self.fields['address1'].required = True
 
+    def clean_shop_name(self):
+        shop_name = self.cleaned_data.get('shop_name')
+        qs = Shop.active_objects.filter(shop_name=shop_name)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError('既に店舗名は存在します')
+        return shop_name
 
 
 class RelationForm(forms.ModelForm):
