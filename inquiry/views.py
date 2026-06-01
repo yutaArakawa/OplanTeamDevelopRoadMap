@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.views import View
@@ -64,7 +65,11 @@ class InquiryListView(LoginRequiredMixin, TemplateView):
             received = received.filter(to_relation__warehouse=user.warehouse)
 
         # ---- 送信済み一覧 ----
-        sent = Inquiry.active_objects.filter(from_user=user)
+        sent = Inquiry.active_objects.filter(from_user=user).select_related(
+            'to_relation',
+            'to_relation__shop',
+            'to_relation__warehouse',
+            )
 
         # ---- 絞り込み (受信側) ----
         sort_authority = self.request.GET.get('authority')
@@ -88,13 +93,41 @@ class InquiryListView(LoginRequiredMixin, TemplateView):
             except ValueError:
                 pass
 
-        # ---- ステータス絞り込み (両方) ----
         sort_status = self.request.GET.get('status')
         if sort_status is not None and sort_status != '':
             try:
                 status_val = int(sort_status)
                 received = received.filter(status=status_val)
-                sent = sent.filter(status=status_val)
+            except ValueError:
+                pass
+
+        # ---- 絞り込み (受信側) ----
+        sort_sender_to_authority = self.request.GET.get('sender_to_authority')
+        if sort_sender_to_authority:
+            try:
+                sent = sent.filter(to_authority_id=int(sort_sender_to_authority))
+            except ValueError:
+                pass
+
+        sort_sender_to_shop = self.request.GET.get('sender_to_shop')
+        if sort_sender_to_shop:
+            try:
+                sent = sent.filter(to_relation__shop_id=int(sort_sender_to_shop))
+            except ValueError:
+                pass
+
+        sort_sender_to_warehouse = self.request.GET.get('sender_to_warehouse')
+        if sort_sender_to_warehouse:
+            try:
+                sent = sent.filter(to_relation__warehouse_id=int(sort_sender_to_warehouse))
+            except ValueError:
+                pass
+
+        sort_sender_status = self.request.GET.get('sender_status')
+        if sort_sender_status is not None and sort_sender_status != '':
+            try:
+                sender_status_val = int(sort_sender_status)
+                sent = sent.filter(status=sender_status_val)
             except ValueError:
                 pass
 
@@ -102,7 +135,10 @@ class InquiryListView(LoginRequiredMixin, TemplateView):
         context['sent_inquiries'] = sent.order_by('-created_at')
 
         # 絞り込みUI用マスタ
-        context['authorities'] = Authority.objects.all()
+        # 宛先権限: 自分と異なる権限のみ選択可能
+        context['authorities'] = Authority.objects.exclude(
+            id=user.authority_id
+        )
         context['shops'] = Shop.active_objects.all()
         context['warehouses'] = Warehouse.active_objects.all()
         context['status_choices'] = Inquiry.Status.choices
@@ -127,6 +163,7 @@ class InquiryCreateView(NonAdminRequiredMixin, View):
         form = InquiryCreateForm(request.POST, login_user=request.user)
         if form.is_valid():
             form.save()
+            messages.success(self.request, '問い合わせを送信しました。')
             return redirect(self.success_url)
         return render(request, self.template_name, {'form': form})
 
@@ -146,7 +183,8 @@ class InquiryGuestCreateView(View):
         form = InquiryGuestCreateForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('login')
+            messages.success(self.request, '問い合わせを送信しました。')
+            return redirect('inquiry_create_guest')
         return render(request, self.template_name, {'form': form})
 
 
@@ -158,7 +196,13 @@ class InquiryDetailView(LoginRequiredMixin, View):
     template_name = 'inquiry/inquiry_detail.html'
 
     def _get_inquiry_or_403(self, request, pk):
-        inquiry = get_object_or_404(Inquiry.active_objects, pk=pk)
+        inquiry = get_object_or_404(
+            Inquiry.active_objects.select_related(
+                'to_relation__warehouse',
+                'to_relation__shop',
+            ),
+            pk=pk
+        )
         user = request.user
         is_recv = _is_receiver(user, inquiry)
         is_sender = (inquiry.from_user == user)
@@ -169,10 +213,18 @@ class InquiryDetailView(LoginRequiredMixin, View):
     def get(self, request, pk, *args, **kwargs):
         inquiry, is_recv = self._get_inquiry_or_403(request, pk)
         form = InquiryStatusUpdateForm(instance=inquiry) if is_recv else None
+        # to_relation_label : 宛先所属の表示用
+        to_relation_label = None
+        if inquiry.to_relation:
+            if inquiry.to_authority_id == AUTHORITY_SHOP:
+                to_relation_label = inquiry.to_relation.shop.shop_name
+            elif inquiry.to_authority_id == AUTHORITY_WAREHOUSE:
+                to_relation_label = inquiry.to_relation.warehouse.warehouse_name
         return render(request, self.template_name, {
             'inquiry': inquiry,
             'is_receiver': is_recv,
             'form': form,
+            'to_relation_label': to_relation_label,
         })
 
     def post(self, request, pk, *args, **kwargs):

@@ -11,10 +11,10 @@
             {% if user.authority_id == AUTHORITY_ADMIN %}
             <div>
                 <p class="mb-0">権限</p>
-                <select name="authority" class="form-select">
+                <select name="authority" class="form-select " id="authority-select">
                     <option value=""> - </option>
                     {% for authority in authorities %}
-                    <option value="{{authority.id}}">{{authority}}</option>
+                    <option value="{{authority.id}}" {% if request.GET.authority == authority.id|stringformat:"s" %}selected{% endif %}>{{authority}}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -22,10 +22,10 @@
             {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_SHOP %}
             <div>
                 <p class="mb-0">所属店舗</p>
-                <select name="shop" class="form-select">
+                <select name="shop" class="form-select" id="belonging-select-shop">
                     <option value=""> - </option>
                     {% for shop in shops %}
-                    <option value="{{shop.id}}">{{shop}}</option>
+                    <option value="{{shop.id}}" {% if request.GET.shop == shop.id|stringformat:"s" %}selected{% endif %}>{{shop}}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -33,10 +33,10 @@
             {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_WAREHOUSE %}
             <div>
                 <p class="mb-0">所属倉庫</p>
-                <select name="warehouse" class="form-select">
+                <select name="warehouse" class="form-select" id="belonging-select-warehouse">
                     <option value=""> - </option>
                     {% for warehouse in warehouses %}
-                    <option value="{{warehouse.id}}">{{warehouse}}</option>
+                    <option value="{{warehouse.id}}" {% if request.GET.warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>{{warehouse}}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -46,6 +46,7 @@
             <button type="submit" class="btn-primary">
                 権限絞り込み
             </button>
+            <a href="{% url 'user_list' %}" class="btn btn-outline-secondary ms-1">リセット</a>
         </div>
     </form>
     <a href="{% url 'user_create' %}" class="btn btn-primary mb-5 ms-auto">新規作成</a>

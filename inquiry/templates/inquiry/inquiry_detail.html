@@ -49,8 +49,8 @@
             <tr>
                 <th class="table-secondary">宛先所属</th>
                 <td>
-                    {% if inquiry.to_relation %}
-                        {{ inquiry.to_relation }}
+                    {% if to_relation_label %}
+                        {{ to_relation_label }}
                     {% else %}
                         -
                     {% endif %}
