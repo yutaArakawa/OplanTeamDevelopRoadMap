@@ -101,7 +101,7 @@ class InquiryListView(LoginRequiredMixin, TemplateView):
             except ValueError:
                 pass
 
-        # ---- 絞り込み (受信側) ----
+        # ---- 絞り込み (送信側) ----
         sort_sender_to_authority = self.request.GET.get('sender_to_authority')
         if sort_sender_to_authority:
             try:
