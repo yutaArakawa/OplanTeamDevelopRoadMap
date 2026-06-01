@@ -1,4 +1,9 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'inventory/css/inventory.css' %}">
+{% endblock %}
 
 {% block title %}
 倉庫店舗連携管理
@@ -43,7 +48,7 @@
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
-                    <th style="width: 32%;">店舗</th>
+                    <th class="col-width-third">店舗</th>
                     <th>連携倉庫</th>
                 </tr>
             </thead>

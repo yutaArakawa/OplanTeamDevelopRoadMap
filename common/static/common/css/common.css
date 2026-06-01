@@ -1,3 +1,12 @@
+/* ===== Header ===== */
+.header-admin     { background-color: #ead5f9; }
+.header-shop      { background-color: #ffe0b2; }
+.header-warehouse { background-color: #c8e6c9; }
+.header-default   { background-color: #f8f9fa; }
+
+/* ===== Utilities ===== */
+.text-prewrap { white-space: pre-wrap; }
+
 /* ===== Sidebar ===== */
 .offcanvas-sidebar {
     background: linear-gradient(180deg, #1a2f4b 0%, #2c4a6e 100%);

@@ -1,4 +1,4 @@
-<nav class="navbar navbar-default border" style="background-color: {% if request.user.authority_id == 1 %}#ead5f9{% elif request.user.authority_id == 2 %}#ffe0b2{% elif request.user.authority_id == 3 %}#c8e6c9{% else %}#f8f9fa{% endif %};">
+<nav class="navbar navbar-default border {% if request.user.authority_id == 1 %}header-admin{% elif request.user.authority_id == 2 %}header-shop{% elif request.user.authority_id == 3 %}header-warehouse{% else %}header-default{% endif %}">
 
     <div class="container-fluid d-flex">
 

@@ -1,4 +1,9 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'inventory/css/inventory.css' %}">
+{% endblock %}
 
 {% block title %}受注管理{% endblock %}
 
@@ -93,7 +98,7 @@
                   class="d-flex align-items-center gap-1">
               {% csrf_token %}
               <input type="hidden" name="next" value="{{ request.get_full_path }}">
-              <select name="status" class="form-select form-select-sm" style="min-width:90px;">
+              <select name="status" class="form-select form-select-sm select-min-width">
                 {% for value, label in status_choices %}
                 {% if value == 0 or value == 1 %}
                 <option value="{{ value }}"
