@@ -92,6 +92,34 @@ This is a Django inventory/stock management system for a multi-location retail b
 - **Form pre-population via query param**: Pass data from a list page to a create form by appending a query parameter to the URL (e.g. `?relation=<id>`). The view reads `request.GET.get('relation')` and passes it to the form's `__init__`; the form sets `self.initial[field]` to pre-fill specific fields.
 - **update_or_create for upsert**: Use `Model.objects.update_or_create(lookup_fields, defaults={...})` when a POST should create a new record or update an existing one transparently (e.g. `ShopStockEditView`).
 
+**Frontend styling:**
+
+- **Bootstrap first**: Use Bootstrap utility classes and components wherever possible.
+- **Custom CSS**: If Bootstrap cannot cover the requirement (e.g. gradients, specific `rgba` colors, `letter-spacing`, hover transitions), write the CSS in an external `.css` file — never inline `style=""` attributes on HTML elements, and never `<style>` blocks inside templates.
+- **CSS file locations**: Place app-specific CSS under `<app>/static/<app>/css/`. Shared CSS goes in `common/static/common/css/common.css`. Load files via `{% load static %}` and `<link rel="stylesheet" href="{% static '...' %}">`.
+- **STATIC_URL**: Must be set to `'/static/'` (with leading slash) in `settings.py` so that `{% static %}` generates absolute paths that resolve correctly on all pages regardless of URL depth.
+- **Page-specific CSS**: Use `{% block extra_css %}` in templates that extend `base.html` to load page-specific CSS files:
+  ```html
+  {% load static %}
+  {% block extra_css %}
+  <link rel="stylesheet" href="{% static 'app/css/app.css' %}">
+  {% endblock %}
+  ```
+
+**URL conventions:**
+
+- **Plural resource names**: Collections use plural form — `warehouses/`, `shops/`, `orders/`, etc.
+- **Hyphens in URL paths**: Multi-word segments use hyphens — `status-update`, `connected-warehouses`.
+- **Underscores in `name=`**: The `name=` parameter follows Python identifier convention — `warehouse_order_status_update`.
+- **Static paths before variable paths**: Within the same resource group, place static paths (e.g. `warehouses/stock/`) before variable paths (e.g. `warehouses/<int:pk>/edit/`) for readability.
+- **Standard CRUD pattern**:
+  ```
+  <resource>/                 一覧
+  <resource>/create/          作成
+  <resource>/<pk>/edit/       編集
+  <resource>/<pk>/delete/     削除
+  ```
+
 **Database:** MySQL in Docker (`stockdb`). CI uses SQLite (controlled by the `CI` environment variable in `config/settings.py`).
 
 **CI:** CircleCI runs migrations and `pytest` on every push.
