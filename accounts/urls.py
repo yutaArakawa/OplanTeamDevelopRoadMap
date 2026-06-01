@@ -18,25 +18,25 @@ urlpatterns = [
     ),
 
     path(
-        'user_list/',
+        'user/list/',
         UserListView.as_view(),
         name='user_list'
     ),
 
     path(
-        'user_create/',
+        'user/create/',
         UserCreateView.as_view(),
         name='user_create'
     ),
 
     path(
-        'user_update/<int:pk>/',
+        'user/update/<int:pk>/',
         UserUpdateView.as_view(),
         name='user_update'
     ),
 
     path(
-        'user_delete/<int:pk>/',
+        'user/delete/<int:pk>/',
         UserDeleteView.as_view(),
         name='user_delete'
     ),
