@@ -163,8 +163,8 @@ class TestInquiryGuestCreate:
         response = client.get(reverse('inquiry_create_guest'))
         assert response.status_code == 200
 
-    def test_post_success_redirects_to_login(self, client, authority_admin, authority_shop):
-        """有効なデータを送信すると管理者宛に問い合わせが作成されログイン画面にリダイレクト"""
+    def test_post_success_redirects_to_guest_create(self, client, authority_admin, authority_shop):
+        """有効なデータを送信すると管理者宛に問い合わせが作成されゲスト問い合わせ画面にリダイレクト"""
         response = client.post(reverse('inquiry_create_guest'), {
             'from_name': 'テストゲスト',
             'from_authority': authority_shop.id,
@@ -174,7 +174,7 @@ class TestInquiryGuestCreate:
             'inquiry_details': 'ゲストテスト問い合わせ内容',
         })
         assert response.status_code == 302
-        assert response.url == reverse('login')
+        assert response.url == reverse('inquiry_create_guest')
         assert Inquiry.active_objects.filter(
             from_name='テストゲスト', to_authority=authority_admin
         ).exists()

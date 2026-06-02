@@ -26,32 +26,6 @@
     </div>
     {% endif %}
 
-    {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_SHOP %}
-    <div class="col-auto">
-        <select name="shop" class="form-select">
-            <option value="">所属店舗 -</option>
-            {% for shop in shops %}
-            <option value="{{ shop.id }}" {% if request.GET.shop == shop.id|stringformat:"s" %}selected{% endif %}>
-                {{ shop }}
-            </option>
-            {% endfor %}
-        </select>
-    </div>
-    {% endif %}
-
-    {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_WAREHOUSE %}
-    <div class="col-auto">
-        <select name="warehouse" class="form-select">
-            <option value="">所属倉庫 -</option>
-            {% for warehouse in warehouses %}
-            <option value="{{ warehouse.id }}" {% if request.GET.warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>
-                {{ warehouse }}
-            </option>
-            {% endfor %}
-        </select>
-    </div>
-    {% endif %}
-
     <div class="col-auto">
         <select name="status" class="form-select">
             <option value="">ステータス -</option>
@@ -131,16 +105,71 @@
     </tbody>
 </table>
 
-{% if request.user.authority_id == 2 or request.user.authority_id == 3 %}
+<!-- 絞り込みフォーム(送信側) -->
+{% if request.user.authority_id == AUTHORITY_SHOP or request.user.authority_id == AUTHORITY_WAREHOUSE %}
+<form method="get" class="row g-2 mb-4">
+    <div class="col-auto">
+        <select name="sender_to_authority" id="authority-select" class="form-select">
+            <option value="">宛先権限 -</option>
+            {% for auth in authorities %}
+            <option value="{{ auth.id }}" {% if request.GET.sender_to_authority == auth.id|stringformat:"s" %}selected{% endif %}>
+                {{ auth }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_WAREHOUSE %}
+    <div class="col-auto">
+        <select name="sender_to_shop" class="form-select" id="belonging-select">
+            <option value="">宛先所属 -</option>
+            {% for shop in shops %}
+            <option value="{{ shop.id }}" {% if request.GET.sender_to_shop == shop.id|stringformat:"s" %}selected{% endif %}>
+                {{ shop }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_SHOP %}
+    <div class="col-auto">
+        <select name="sender_to_warehouse" class="form-select" id="belonging-select">
+            <option value="">宛先所属 -</option>
+            {% for warehouse in warehouses %}
+            <option value="{{ warehouse.id }}" {% if request.GET.sender_to_warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>
+                {{ warehouse }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    <div class="col-auto">
+        <select name="sender_status" class="form-select">
+            <option value="">ステータス -</option>
+            {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if request.GET.sender_status == val|stringformat:"s" %}selected{% endif %}>
+                {{ label }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary">絞り込み</button>
+        <a href="{% url 'inquiry_list' %}" class="btn btn-link">リセット</a>
+    </div>
+</form>
+
 <!-- 送信済み一覧 -->
 <h4>送信済み一覧</h4>
 <table class="table table-hover">
     <thead class="table-light">
         <tr>
             <th>問い合わせ内容</th>
-            <th>権限</th>
-            <th>所属</th>
-            <th>名前</th>
+            <th>宛先権限</th>
+            <th>宛先所属</th>
             <th>送信日時</th>
             <th>ステータス</th>
             <th>詳細</th>
@@ -152,19 +181,17 @@
         <tr class="align-middle">
             <td>{{ inquiry.inquiry_details|truncatechars:30 }}</td>
 
-            <td>{{ inquiry.from_authority }}</td>
+            <td>{{ inquiry.to_authority }}</td>
 
             <td>
-                {% if inquiry.from_belong_shop %}
-                    {{ inquiry.from_belong_shop }}
-                {% elif inquiry.from_belong_warehouse %}
-                    {{ inquiry.from_belong_warehouse }}
+                {% if inquiry.to_authority_id == AUTHORITY_SHOP %}
+                    {{ inquiry.to_relation.shop.shop_name }}
+                {% elif inquiry.to_authority_id == AUTHORITY_WAREHOUSE %}
+                    {{ inquiry.to_relation.warehouse.warehouse_name }}
                 {% else %}
                     -
                 {% endif %}
             </td>
-
-            <td>{{ inquiry.from_user.username }}</td>
 
             <td>{{ inquiry.created_at|date:"Y/m/d H:i" }}</td>
 
