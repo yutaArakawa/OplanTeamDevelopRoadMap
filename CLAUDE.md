@@ -73,6 +73,25 @@ This is a Django inventory/stock management system for a multi-location retail b
 - **店舗在庫一覧** (`shop_stock_list`, `ShopStockListView`) — Shop staff views all active goods with their store's current stock level. Stock is annotated via `Coalesce(Sum(...), 0)` so goods with no `ShopStock` record show 0. Supports category filter.
 - **店舗在庫編集** (`shop_stock_edit/<goods_pk>/`, `ShopStockEditView`) — Shop staff updates the stock count for a specific goods item. Uses `ShopStock.objects.update_or_create()` so both new creation and updates are handled through the same POST. Returns 404 for unknown `goods_pk`.
 
+**Master data management (admin only):**
+
+- **GoodsCategory CRUD** (`goods_category_list/create/<pk>/edit/<pk>/delete/`) — Admin manages product categories. `GoodsCategoryCreateView.form_invalid()` handles `next` param redirect (used when creating from the goods form). `get_success_url()` appends `?category_created=<pk>` to `next` so the goods form can pre-select the new category.
+- **Goods CRUD** (`goods_list/create/<pk>/edit/<pk>/delete/`) — Admin manages products. `GoodsCreateView` / `GoodsUpdateView` read `?category_created=<pk>` from GET params via `get_initial()` to pre-fill the category field after creating a new category inline.
+- **Warehouse CRUD** (`warehouses/`, `warehouses/create/`, `warehouses/<pk>/edit/`, `warehouses/<pk>/delete/`) — Admin manages warehouses. `WarehouseUpdateView` exposes `can_delete` context (False if warehouse has linked users, stock, or relations).
+- **Shop CRUD** (`shops/`, `shops/create/`, `shops/<pk>/edit/`, `shops/<pk>/delete/`) — Admin manages shops. `ShopUpdateView` exposes `can_delete` context (False if shop has linked users, stock, relations, or monthly summaries).
+- **Relation CRUD** (`relations/`, `relations/create/`, `relations/<pk>/delete/`) — Admin manages warehouse↔shop links. `RelationForm.clean()` prevents duplicate active relations for the same shop–warehouse pair.
+
+**Warehouse staff order management flow:**
+
+- **受注管理一覧** (`warehouse_orders/`, `WarehouseOrderListView`) — Warehouse staff views orders received for their warehouse. Supports filtering by date range and status. Uses module-level helpers `_get_filtered_orders()` and `_build_rows()`.
+- **受注ステータス更新** (`warehouse_orders/<pk>/status/`, `WarehouseOrderStatusUpdateView`) — Warehouse staff updates order status. Only `ORDERED(0)` and `PREPARING(1)` are accepted (`ALLOWED_STATUSES`); other values return an error. Returns 404 for orders not belonging to the logged-in warehouse.
+- **受注CSVエクスポート** (`warehouse_orders/export/csv/`, `WarehouseOrderCSVExportView`) — Downloads received orders as CSV. Uses `content_type='text/csv; charset=utf-8-sig'` (note: Django encodes each `write()` call with utf-8-sig, adding BOM to every row). Columns: 発注元店舗, 商品名, 発注個数, ステータス, 発注日時, 更新日時.
+- **受注PDFエクスポート** (`warehouse_orders/export/pdf/`, `WarehouseOrderPDFExportView`) — Downloads received orders as PDF using reportlab.
+
+**Shop connected-warehouse list:**
+
+- **連携倉庫一覧** (`shop/connected-warehouses/`, `ShopConnectedWarehouseListView`) — Shop staff views warehouses linked to their store. Used as an entry point to create inquiries via `?relation=<id>`.
+
 **Inquiry flow:**
 
 - **問い合わせ一覧** (`inquiry_list`, `InquiryListView`) — Shows received and sent inquiries. Received list is filtered to the logged-in user's authority + belonging (shop or warehouse). Admin sees all inquiries sent to admin authority; shop/warehouse staff see only those addressed to their specific location via `to_relation`. Supports filter by authority, shop, warehouse, and status.
@@ -92,6 +111,34 @@ This is a Django inventory/stock management system for a multi-location retail b
 - **Form pre-population via query param**: Pass data from a list page to a create form by appending a query parameter to the URL (e.g. `?relation=<id>`). The view reads `request.GET.get('relation')` and passes it to the form's `__init__`; the form sets `self.initial[field]` to pre-fill specific fields.
 - **update_or_create for upsert**: Use `Model.objects.update_or_create(lookup_fields, defaults={...})` when a POST should create a new record or update an existing one transparently (e.g. `ShopStockEditView`).
 
+**Frontend styling:**
+
+- **Bootstrap first**: Use Bootstrap utility classes and components wherever possible.
+- **Custom CSS**: If Bootstrap cannot cover the requirement (e.g. gradients, specific `rgba` colors, `letter-spacing`, hover transitions), write the CSS in an external `.css` file — never inline `style=""` attributes on HTML elements, and never `<style>` blocks inside templates.
+- **CSS file locations**: Place app-specific CSS under `<app>/static/<app>/css/`. Shared CSS goes in `common/static/common/css/common.css`. Load files via `{% load static %}` and `<link rel="stylesheet" href="{% static '...' %}">`.
+- **STATIC_URL**: Must be set to `'/static/'` (with leading slash) in `settings.py` so that `{% static %}` generates absolute paths that resolve correctly on all pages regardless of URL depth.
+- **Page-specific CSS**: Use `{% block extra_css %}` in templates that extend `base.html` to load page-specific CSS files:
+  ```html
+  {% load static %}
+  {% block extra_css %}
+  <link rel="stylesheet" href="{% static 'app/css/app.css' %}">
+  {% endblock %}
+  ```
+
+**URL conventions:**
+
+- **Plural resource names**: Collections use plural form — `warehouses/`, `shops/`, `orders/`, etc.
+- **Hyphens in URL paths**: Multi-word segments use hyphens — `status-update`, `connected-warehouses`.
+- **Underscores in `name=`**: The `name=` parameter follows Python identifier convention — `warehouse_order_status_update`.
+- **Static paths before variable paths**: Within the same resource group, place static paths (e.g. `warehouses/stock/`) before variable paths (e.g. `warehouses/<int:pk>/edit/`) for readability.
+- **Standard CRUD pattern**:
+  ```
+  <resource>/                 一覧
+  <resource>/create/          作成
+  <resource>/<pk>/edit/       編集
+  <resource>/<pk>/delete/     削除
+  ```
+
 **Database:** MySQL in Docker (`stockdb`). CI uses SQLite (controlled by the `CI` environment variable in `config/settings.py`).
 
 **CI:** CircleCI runs migrations and `pytest` on every push.
@@ -100,5 +147,11 @@ This is a Django inventory/stock management system for a multi-location retail b
 
 Test files per app:
 - `accounts/tests.py` — login, user CRUD (admin), user management
-- `inventory/tests.py` — warehouse stock CRUD, order goods list, order create, CSV download/import, order history, CSV/PDF export, shop stock list, shop stock edit
+- `dashboard/tests.py` — DashboardView for all 3 roles (admin summary counts, shop rankings, warehouse stock/order counts)
+- `inventory/tests/test_goods_category.py` — GoodsCategory list/create/update/delete (including `next` param redirect and `category_created` URL)
+- `inventory/tests/test_goods.py` — Goods list/create/update/delete (including `category_created` GET param initial value and `can_delete` context)
+- `inventory/tests/test_warehouse.py` — Warehouse master CRUD, warehouse stock list/edit, warehouse order list/status-update/CSV/PDF export
+- `inventory/tests/test_shop.py` — Shop master CRUD, shop stock list/edit, shop delete
+- `inventory/tests/test_order.py` — order goods list, order create, CSV download/import, order history, CSV/PDF export (shop side)
+- `inventory/tests/test_relation.py` — relation list/create/delete, shop connected-warehouse list
 - `inquiry/tests.py` — inquiry list (received/sent, filters), inquiry create (auth checks, validation), guest inquiry, detail/status update, delete, form label_from_instance, relation query-param pre-population

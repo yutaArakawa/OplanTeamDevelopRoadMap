@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, UserChangeForm
 from django.core.exceptions import ValidationError
 from accounts.models import User, Authority
+from inventory.models import Shop, Warehouse
 from common.constants import (
     AUTHORITY_ADMIN,
     AUTHORITY_SHOP,
@@ -50,21 +51,23 @@ class UserCreateForm(UserCreationForm):
         self.fields['warehouse'].widget.attrs.update({
             'class': 'form-select'
         })
+        self.fields['shop'].queryset = Shop.active_objects.order_by('shop_name')
+        self.fields['warehouse'].queryset = Warehouse.active_objects.order_by('warehouse_name')
 
         if user:
             # 管理者
             if user.authority_id == AUTHORITY_ADMIN:
-                self.fields['authority'].queryset = Authority.objects.all()
+                self.fields['authority'].queryset = Authority.active_objects.all()
             # 店舗スタッフ
             if user.authority_id == AUTHORITY_SHOP:
-                self.fields['authority'].queryset = Authority.objects.filter(
+                self.fields['authority'].queryset = Authority.active_objects.filter(
                     id=AUTHORITY_SHOP
                 )
                 self.fields['authority'].initial = AUTHORITY_SHOP
 
             # 倉庫スタッフ
             if user.authority_id == AUTHORITY_WAREHOUSE:
-                self.fields['authority'].queryset = Authority.objects.filter(
+                self.fields['authority'].queryset = Authority.active_objects.filter(
                     id=AUTHORITY_WAREHOUSE
                 )
                 self.fields['authority'].initial = AUTHORITY_WAREHOUSE
@@ -111,6 +114,8 @@ class UserUpdateForm(UserChangeForm):
         self.fields['warehouse'].widget.attrs.update({
             'class': 'form-select'
         })
+        self.fields['shop'].queryset = Shop.active_objects.order_by('shop_name')
+        self.fields['warehouse'].queryset = Warehouse.active_objects.order_by('warehouse_name')
 
         if user:
             # 店舗スタッフ

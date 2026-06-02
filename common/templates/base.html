@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ja">
     <head>
@@ -8,10 +9,13 @@
         </title>
 
         <!-- Bootstrap -->
-         <link
+        <link
             href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css"
             rel="stylesheet"
         >
+        <link rel="stylesheet" href="{% static 'common/css/common.css' %}">
+        <!--　ページ固有のCSS差込 -->
+        {% block extra_css %}{% endblock %}
     </head>
     <body>
         {% include 'components/header.html' %}
@@ -29,5 +33,12 @@
             {% endblock %}
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // @ts-nocheck
+            const AUTHORITY_ADMIN = {{ AUTHORITY_ADMIN }};
+            const AUTHORITY_SHOP = {{ AUTHORITY_SHOP }};
+            const AUTHORITY_WAREHOUSE = {{ AUTHORITY_WAREHOUSE }};
+        </script>
+        <script src="{% static 'common/js/common.js' %}"></script>
     </body>
 </html>

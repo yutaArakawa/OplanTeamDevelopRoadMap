@@ -18,8 +18,14 @@ class InquiryCreateForm(forms.ModelForm):
 
         for field in self.fields.values():
             field.widget.attrs.update({'class': 'form-control'})
-        self.fields['to_authority'].widget.attrs.update({'class': 'form-select'})
-        self.fields['to_relation'].widget.attrs.update({'class': 'form-select'})
+        self.fields['to_authority'].widget.attrs.update({
+            'class': 'form-select',
+            'id': 'authority-select',
+        })
+        self.fields['to_relation'].widget.attrs.update({
+            'class': 'form-select',
+            'id': 'belonging-select',
+        })
         self.fields['to_relation'].required = False
         self.fields['inquiry_details'].widget = forms.Textarea(
             attrs={'class': 'form-control', 'rows': 6}
@@ -109,9 +115,18 @@ class InquiryGuestCreateForm(forms.ModelForm):
 
         for field in self.fields.values():
             field.widget.attrs.update({'class': 'form-control'})
-        self.fields['from_authority'].widget.attrs.update({'class': 'form-select'})
-        self.fields['from_belong_shop'].widget.attrs.update({'class': 'form-select'})
-        self.fields['from_belong_warehouse'].widget.attrs.update({'class': 'form-select'})
+        self.fields['from_authority'].widget.attrs.update({
+            'class': 'form-select',
+            'id': 'authority-select',
+            })
+        self.fields['from_belong_shop'].widget.attrs.update({
+            'class': 'form-select',
+            'id': 'belonging-select-shop',
+            })
+        self.fields['from_belong_warehouse'].widget.attrs.update({
+            'class': 'form-select',
+            'id': 'belonging-select-warehouse',
+            })
         self.fields['inquiry_details'].widget = forms.Textarea(
             attrs={'class': 'form-control', 'rows': 6}
         )
