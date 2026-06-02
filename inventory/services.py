@@ -1,7 +1,7 @@
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
-from inventory.models import Order, OrderGoods, Goods, GoodsCategory, ShopStock
+from inventory.models import Order, OrderGoods, Goods, GoodsCategory, ShopStock, WarehouseStock
 
 # 店舗の注文履歴データを取得するサービス関数
 def get_order_history_data(shop):
@@ -77,3 +77,21 @@ def update_or_create_shop_stock(goods, shop, stock_value):
         shop=shop,
         defaults={'stock': stock_value}
     )
+
+# 商品作成時に、全倉庫の在庫にレコード追加するサービス関数
+def insert_initial_warehouse_stock_for_goods(goods, warehouses):
+    for warehouse in warehouses:
+        WarehouseStock.objects.get_or_create(
+            warehouse=warehouse,
+            goods=goods,
+            defaults={'stock': 0}
+        )
+
+# 商品作成時に、全店舗の在庫にレコード追加するサービス関数
+def insert_initial_shop_stock_for_goods(goods, shops):
+    for shop in shops:
+        ShopStock.objects.get_or_create(
+            shop=shop,
+            goods=goods,
+            defaults={'stock': 0}
+        )

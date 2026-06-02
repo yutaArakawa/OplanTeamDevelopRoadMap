@@ -213,6 +213,14 @@ class ShopStock(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['shop', 'goods'],
+                name='unique_shop_goods'
+            )
+        ]
+
     def __str__(self):
         return f'{self.shop} - {self.goods} : {self.stock}'
 
@@ -229,6 +237,14 @@ class WarehouseStock(BaseModel):
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['warehouse', 'goods'],
+                name='unique_warehouse_goods'
+            )
+        ]
 
     def __str__(self):
         return f'{self.warehouse} - {self.goods} : {self.stock}'
