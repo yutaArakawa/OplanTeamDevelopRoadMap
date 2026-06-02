@@ -329,6 +329,11 @@ class ShopCreateView(AdminRequiredMixin, CreateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
+        shop = self.object
+        ShopStock.objects.bulk_create([
+            ShopStock(shop=shop, goods=goods, stock=0)
+            for goods in Goods.active_objects.all()
+        ])
         messages.success(self.request, '店舗を登録しました。')
         return response
 
