@@ -155,3 +155,59 @@ Test files per app:
 - `inventory/tests/test_order.py` — order goods list, order create, CSV download/import, order history, CSV/PDF export (shop side)
 - `inventory/tests/test_relation.py` — relation list/create/delete, shop connected-warehouse list
 - `inquiry/tests.py` — inquiry list (received/sent, filters), inquiry create (auth checks, validation), guest inquiry, detail/status update, delete, form label_from_instance, relation query-param pre-population
+
+**Scheduled batch jobs:**
+
+- **月次注文サマリー更新バッチ** (`update_monthly_order_summary` management command) — Aggregates daily order data per shop/goods into `MonthlyOrderSummary` records for reporting and analytics.
+
+**Implementation details:**
+
+- **Management command** (`dashboard/management/commands/update_monthly_order_summary.py`):
+  - Queries orders created today via `order_filter_by_date_and_status()`
+  - Groups orders by (shop, goods) to aggregate total `OrderGoods.quantity`
+  - Deletes existing records for today (`MonthlyOrderSummary.objects.filter(count_date=today).delete()`) to prevent duplicates on re-execution
+  - Uses `atomic()` transaction for atomicity
+  - Bulk-creates `MonthlyOrderSummary` records in a single database operation
+
+- **Cron scheduling:**
+  - **Docker setup**: System-level crontab at `/etc/cron.d/app-cron` (deployed in `Dockerfile`)
+  - **Environment variables** in crontab:
+    ```
+    TZ=Asia/Tokyo          # Timezone for timestamp logging
+    PYTHONPATH=/app        # Python module path
+    DJANGO_SETTINGS_MODULE=config.settings
+    ```
+  - **Schedule configuration**: 
+    - **Development** (current): `0 * * * *` — Runs every hour at minute 0 (hourly testing)
+    - **Production**: `0 23 * * *` — Runs daily at 23:00 (to be changed upon deployment)
+  - **Execution**: Bash script wraps the Django command with logging: `bash /app/batch/run_monthly_order_summary.sh`
+  - **Log output**: `>> /var/log/cron.log 2>&1` — Both stdout and stderr logged to `/var/log/cron.log`
+
+- **Bash script** (`batch/run_monthly_order_summary.sh`):
+  - Exports environment variables at file start (standard Unix practice)
+  - Uses `set -e` to fail fast if any command fails
+  - Logs batch start and end times with JST timezone
+  - Exit logs visible in cron log file for monitoring
+
+- **Docker/Compose configuration**:
+  - **Dockerfile**: 
+    - `ENV TZ=Asia/Tokyo` for timestamp consistency
+    - `COPY batch/crontab /etc/cron.d/app-cron` to embed crontab in image
+    - `RUN chmod 0644 /etc/cron.d/app-cron` to make it readable by cron daemon
+  - **docker-compose.yml** (cron service):
+    - `command: cron -f` to run cron in foreground (required for container uptime)
+    - `TZ=Asia/Tokyo` environment variable for redundancy
+    - Depends on `db` service to ensure database is ready
+
+- **Testing** (`dashboard/tests.py::TestUpdateMonthlyOrderSummary`):
+  - `test_command_executes_successfully()` — Verifies command runs without error
+  - `test_creates_monthly_summary_records()` — Confirms `MonthlyOrderSummary` records are created
+  - `test_no_duplicate_records_on_multiple_executions()` — Verifies deletion logic prevents duplicates
+  - `test_summary_data_accuracy()` — Confirms aggregated `total_quantity` is correct
+
+**Deployment notes:**
+
+- **To change production schedule**: Edit `batch/crontab` line 6 from `0 * * * *` (hourly) to `0 23 * * *` (23:00 daily)
+- **Crontab changes require rebuild**: Since crontab is embedded in Dockerfile, any schedule change requires `docker-compose down && docker-compose up -d --build`
+- **Logs can be monitored via**: `docker-compose exec cron tail -f /var/log/cron.log`
+- **Manual execution for testing**: `docker-compose exec cron bash /app/batch/run_monthly_order_summary.sh`
