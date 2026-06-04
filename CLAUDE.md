@@ -55,6 +55,14 @@ This is a Django inventory/stock management system for a multi-location retail b
 - `inquiry` — Inquiry/support ticket model between user roles
 - `common` — Shared utilities: `BaseModel`, `ActiveManager`, role-check mixins, constants, context processor
 
+**Dashboard (home page):**
+
+- **Admin**: Summary counts (warehouses, shops, goods, categories, users, pending orders)
+- **Shop staff**: 
+  - **自店舗 発注ランキング** — Top 10 products ordered by this shop on previous day, aggregated from `MonthlyOrderSummary` via `services.get_monthly_order_summary()` and `services.get_order_ranking()`
+  - **全店舗 発注ランキング** — Top 10 products ordered across all shops on previous day
+- **Warehouse staff**: Stock counts (own warehouse inventory count, new/preparing order counts) and warehouse stock list
+
 **Ordering flow (shop staff):**
 
 1. **発注商品選択画面** (`order_goods_list`, `OrderGoodsListView`) — Shop staff selects a product to order. Lists all active goods annotated with total stock across related warehouses. Supports category filter.
@@ -106,7 +114,7 @@ This is a Django inventory/stock management system for a multi-location retail b
 - **Role-based access**: Three roles defined in `common/constants.py` — `AUTHORITY_ADMIN=1`, `AUTHORITY_SHOP=2`, `AUTHORITY_WAREHOUSE=3`. Access control uses mixins in `common/mixins.py` (`AdminRequiredMixin`, `ShopStaffRequiredMixin`, `WarehouseStaffRequiredMixin`). Constants are injected into every template via the `authority_constants` context processor.
 - **User constraints**: Shop staff (`authority_id=2`) must have a `shop` FK; warehouse staff (`authority_id=3`) must have a `warehouse` FK. This is enforced in `User.clean()`.
 - **Cross-app FK references**: `accounts.User` references `inventory.Warehouse` and `inventory.Shop` by string (`'inventory.Warehouse'`). `dashboard.MonthlyOrderSummary` references `inventory` models similarly. Avoid circular imports by using string-form FK targets.
-- **services.py**: Shared business logic that is used by multiple views lives in `<app>/services.py`. Views handle only HTTP (request parsing, rendering, redirect); services contain queryset building, filtering, and data transformation. Example: `inventory/services.py` contains `get_order_history_data()`, `order_filter_by_date_and_status()`, `build_rows()`, `get_shop_stock_list()`, `update_or_create_shop_stock()` etc. CSV exports write BOM manually with `response.write('﻿')` using `charset=utf-8` (NOT `charset=utf-8-sig`, which would insert a BOM on every `write()` call and corrupt the file).
+- **services.py**: Shared business logic that is used by multiple views lives in `<app>/services.py`. Views handle only HTTP (request parsing, rendering, redirect); services contain queryset building, filtering, and data transformation. Example: `inventory/services.py` contains `get_order_history_data()`, `order_filter_by_date_and_status()`, `build_rows()`, `get_shop_stock_list()`, `update_or_create_shop_stock()` etc.; `dashboard/services.py` contains `get_monthly_order_summary(date, shop=None)` (filters by date/shop and returns QuerySet) and `get_order_ranking(summary_queryset, limit=10)` (receives QuerySet, aggregates by goods, and returns ranked data in values format). CSV exports write BOM manually with `response.write('﻿')` using `charset=utf-8` (NOT `charset=utf-8-sig`, which would insert a BOM on every `write()` call and corrupt the file).
 - **label_from_instance**: Use `field.label_from_instance = lambda obj: ...` on a `ModelChoiceField` to customise the display text of each choice without subclassing the field. Set this after assigning `queryset`.
 - **Form pre-population via query param**: Pass data from a list page to a create form by appending a query parameter to the URL (e.g. `?relation=<id>`). The view reads `request.GET.get('relation')` and passes it to the form's `__init__`; the form sets `self.initial[field]` to pre-fill specific fields.
 - **update_or_create for upsert**: Use `Model.objects.update_or_create(lookup_fields, defaults={...})` when a POST should create a new record or update an existing one transparently (e.g. `ShopStockEditView`).
@@ -147,7 +155,7 @@ This is a Django inventory/stock management system for a multi-location retail b
 
 Test files per app:
 - `accounts/tests.py` — login, user CRUD (admin), user management
-- `dashboard/tests.py` — DashboardView for all 3 roles (admin summary counts, shop rankings, warehouse stock/order counts)
+- `dashboard/tests.py` — DashboardView for all 3 roles (admin summary counts, shop rankings, warehouse stock/order counts); Service layer tests for order ranking (`get_monthly_order_summary`, `get_order_ranking`)
 - `inventory/tests/test_goods_category.py` — GoodsCategory list/create/update/delete (including `next` param redirect and `category_created` URL)
 - `inventory/tests/test_goods.py` — Goods list/create/update/delete (including `category_created` GET param initial value and `can_delete` context)
 - `inventory/tests/test_warehouse.py` — Warehouse master CRUD, warehouse stock list/edit, warehouse order list/status-update/CSV/PDF export
