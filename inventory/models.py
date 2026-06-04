@@ -69,11 +69,12 @@ class Warehouse(BaseModel):
     def soft_delete(self):
         self.delete_flg = True
         self.save(update_fields=['delete_flg', 'updated_at'])
+        self.warehousestock_set.filter(delete_flg=False).update(delete_flg=True)
 
     def has_related_records(self):
         return (
             self.user_set.filter(delete_flg=False).exists()
-            or self.warehousestock_set.filter(delete_flg=False).exists()
+            or self.warehousestock_set.filter(delete_flg=False, stock__gt=0).exists()
             or self.relation_set.filter(delete_flg=False).exists()
         )
 
@@ -123,11 +124,12 @@ class Shop(BaseModel):
     def soft_delete(self):
         self.delete_flg = True
         self.save(update_fields=['delete_flg', 'updated_at'])
+        self.shopstock_set.filter(delete_flg=False).update(delete_flg=True)
 
     def has_related_records(self):
         return (
             self.user_set.filter(delete_flg=False).exists()
-            or self.shopstock_set.filter(delete_flg=False).exists()
+            or self.shopstock_set.filter(delete_flg=False, stock__gt=0).exists()
             or self.relation_set.filter(delete_flg=False).exists()
             or self.monthlyordersummary_set.filter(delete_flg=False).exists()
         )

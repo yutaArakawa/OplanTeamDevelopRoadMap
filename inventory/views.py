@@ -69,7 +69,14 @@ class WarehouseCreateView(AdminRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        response = super().form_valid(form)
+        with transaction.atomic():
+            goods_list = list(Goods.active_objects.select_for_update().all())
+            response = super().form_valid(form)
+            warehouse = self.object
+            WarehouseStock.objects.bulk_create([
+                WarehouseStock(warehouse=warehouse, goods=goods, stock=0)
+                for goods in goods_list
+            ])
         messages.success(self.request, '倉庫を登録しました。')
         return response
 
