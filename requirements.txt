@@ -3,4 +3,7 @@ mysqlclient
 gunicorn
 pytest
 pytest-django
+pytest-split
+pytest-cov
+coverage
 reportlab

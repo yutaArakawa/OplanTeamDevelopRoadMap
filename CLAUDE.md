@@ -143,6 +143,15 @@ This is a Django inventory/stock management system for a multi-location retail b
 
 **CI:** CircleCI runs migrations and `pytest` on every push.
 
+**CircleCI Configuration** (`.circleci/config.yml`):
+- **Parallelism**: 4 containers run tests in parallel for faster feedback
+- **Test Distribution**: `pytest-split` automatically divides tests by past execution timings for balanced parallel execution (`.circleci/.test_durations` stores timing data across runs)
+- **Caching**: Dependencies cached by `requirements.txt` checksum; pip packages and virtualenv both cached to reduce reinstall time
+- **Coverage**: `pytest-cov` measures code coverage and generates `coverage.xml` artifact for CI dashboard tracking
+- **Test Results**: JUnit XML results stored for CircleCI test visualization
+- **Resource**: `small` resource class for cost efficiency
+- **Environment**: `CI=true` sets SQLite mode; `DJANGO_SETTINGS_MODULE` ensures correct Django config
+
 **Testing:** Uses pytest + pytest-django. Configuration is in `pytest.ini` (sets `DJANGO_SETTINGS_MODULE`). Shared fixtures (users, authorities, shops, warehouses) are defined in `conftest.py` at the project root. Each `Authority` fixture is created with an explicit `id` matching the role constants (`AUTHORITY_ADMIN=1`, `AUTHORITY_SHOP=2`, `AUTHORITY_WAREHOUSE=3`) so that permission logic in views and forms works correctly during tests.
 
 Test files per app:
