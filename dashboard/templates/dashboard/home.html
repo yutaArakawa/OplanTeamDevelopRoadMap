@@ -88,7 +88,7 @@
                         <tr>
                             <td>{{ forloop.counter }}</td>
                             <td>{{ item.goods__goods_name }}</td>
-                            <td class="text-end">{{ item.total }}</td>
+                            <td class="text-end">{{ item.total_quantity_sum }}</td>
                         </tr>
                         {% empty %}
                         <tr>
@@ -121,7 +121,7 @@
                         <tr>
                             <td>{{ forloop.counter }}</td>
                             <td>{{ item.goods__goods_name }}</td>
-                            <td class="text-end">{{ item.total }}</td>
+                            <td class="text-end">{{ item.total_quantity_sum }}</td>
                         </tr>
                         {% empty %}
                         <tr>
