@@ -94,8 +94,10 @@ jobs:
             ./venv/bin/pip list | grep -E "pytest|split|cov"
             echo "=== pytest --version ==="
             ./venv/bin/pytest --version
-            echo "=== pytest plugins ==="
-            ./venv/bin/pytest --co -q 2>&1 | head -5
+            echo "=== pytest plugins list ==="
+            ./venv/bin/pytest --version 2>&1 | grep -i plugin
+            echo "=== pytest-split help ==="
+            ./venv/bin/pytest --help | grep -A 5 "split"
 
       # =============================================
       # テスト実行（並列化 + カバレッジ測定）
