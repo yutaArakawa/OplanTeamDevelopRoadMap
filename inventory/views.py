@@ -1,9 +1,12 @@
 import csv
-from io import BytesIO
 import traceback
+import logging
+
+from io import BytesIO
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit, quote
 
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
@@ -28,6 +31,8 @@ from inventory.models import Goods, GoodsCategory, Relation, Warehouse, Shop, Wa
 from inventory import services
 
 from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
+
+logger = logging.getLogger(__name__)
 
 class WarehouseListView(AdminRequiredMixin, TemplateView):
     template_name = 'inventory/warehouse_list.html'
@@ -67,7 +72,6 @@ class WarehouseCreateView(AdminRequiredMixin, CreateView):
         response = super().form_valid(form)
         messages.success(self.request, '倉庫を登録しました。')
         return response
-
 
 class WarehouseUpdateView(AdminRequiredMixin, UpdateView):
     template_name = 'inventory/warehouse_create.html'
@@ -242,10 +246,24 @@ class GoodsCreateView(AdminRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-        messages.success(self.request, '商品を登録しました。')
-        return response
-
+        try:
+            with transaction.atomic():
+                # 倉庫一覧をロック
+                warehouses = list(Warehouse.active_objects.select_for_update().all())
+                # 店舗一覧をロック
+                shops      = list(Shop.active_objects.select_for_update().all())
+                # 商品レコードを作成
+                response = super().form_valid(form)
+                # 倉庫在庫レコードを作成
+                services.insert_initial_warehouse_stock_for_goods(self.object, warehouses)
+                # 店舗在庫レコードを作成
+                services.insert_initial_shop_stock_for_goods(self.object, shops)
+            messages.success(self.request, '商品を登録しました。')
+            return response
+        except Exception as e:
+            logger.error("Error occurred while creating goods: %s", str(e))
+            messages.error(self.request, '商品の登録に失敗しました。')
+            return super().form_invalid(form)
       
 class GoodsUpdateView(AdminRequiredMixin, UpdateView):
     template_name = 'inventory/goods_create.html'
@@ -336,7 +354,6 @@ class ShopCreateView(AdminRequiredMixin, CreateView):
         ])
         messages.success(self.request, '店舗を登録しました。')
         return response
-
 
 class ShopUpdateView(AdminRequiredMixin, UpdateView):
     template_name = 'inventory/shop_create.html'

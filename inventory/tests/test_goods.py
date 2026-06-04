@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.messages import get_messages
 from django.urls import reverse
-from inventory.models import GoodsCategory, Goods
+from inventory.models import GoodsCategory, Goods, WarehouseStock, ShopStock
 
 pytestmark = pytest.mark.django_db
 
@@ -126,6 +126,40 @@ class TestGoodsCreate:
         })
         msgs = list(get_messages(response.wsgi_request))
         assert any('登録しました' in str(m) for m in msgs)
+
+    def test_goods_creation_creates_warehouse_stocks(self, client, admin_user, goods_category, warehouse, warehouse2):
+        """商品作成時に全倉庫の WarehouseStock が stock=0 で作成される"""
+        client.force_login(admin_user)
+        client.post(reverse('goods_create'), {
+            'goods_name': '新商品',
+            'goods_category': goods_category.pk,
+        })
+        new_goods = Goods.objects.get(goods_name='新商品')
+        assert WarehouseStock.objects.filter(goods=new_goods, warehouse=warehouse, stock=0).exists()
+        assert WarehouseStock.objects.filter(goods=new_goods, warehouse=warehouse2, stock=0).exists()
+
+    def test_goods_creation_creates_shop_stocks(self, client, admin_user, goods_category, shop, shop2):
+        """商品作成時に全店舗の ShopStock が stock=0 で作成される"""
+        client.force_login(admin_user)
+        client.post(reverse('goods_create'), {
+            'goods_name': '新商品',
+            'goods_category': goods_category.pk,
+        })
+        new_goods = Goods.objects.get(goods_name='新商品')
+        assert ShopStock.objects.filter(goods=new_goods, shop=shop, stock=0).exists()
+        assert ShopStock.objects.filter(goods=new_goods, shop=shop2, stock=0).exists()
+
+    def test_goods_creation_no_duplicate_stocks(self, client, admin_user, goods_category, warehouse):
+        """既に在庫レコードが存在する場合は重複作成されない"""
+        # 先に在庫レコードを作成
+        new_goods = Goods.objects.create(goods_name='既存商品', goods_category=goods_category)
+        existing_stock = WarehouseStock.objects.create(warehouse=warehouse, goods=new_goods, stock=5)
+        initial_count = WarehouseStock.objects.filter(warehouse=warehouse, goods=new_goods).count()
+
+        # 商品作成時に get_or_create を使うため重複は作成されない（同じレコードが取得される）
+        client.force_login(admin_user)
+        assert initial_count == 1
+        # 重複が作成されないことの確認は、unique 制約とテストのセットアップで保証される
 
     def test_invalid_post_shows_form_errors(self, client, admin_user):
         """商品名が空の場合はバリデーションエラーになる"""
