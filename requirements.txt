@@ -3,7 +3,7 @@ mysqlclient
 gunicorn
 pytest>=7.0,<9.0
 pytest-django
-pytest-split>=1.0
+pytest-split
 pytest-cov
 coverage
 reportlab
