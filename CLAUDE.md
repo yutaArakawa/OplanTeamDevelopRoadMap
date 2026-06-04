@@ -143,6 +143,18 @@ This is a Django inventory/stock management system for a multi-location retail b
 
 **CI:** CircleCI runs migrations and `pytest` on every push.
 
+**CircleCI Configuration** (`.circleci/config.yml`):
+- **Parallelism**: 4 containers run tests in parallel for faster feedback
+- **Test Distribution**: `pytest-split` v0.11.0 automatically divides tests by past execution timings for balanced parallel execution. Uses options: `--splits=4 --group=$((CIRCLE_NODE_INDEX + 1)) --splitting-algorithm=least_duration --durations-path=.circleci/.test_durations --store-durations`. First run distributes tests evenly (no timing data); subsequent runs use `.circleci/.test_durations` for optimal distribution.
+- **Dependencies**: `requirements.txt` specifies `pytest>=7.0,<9.0` (pytest-split v0.11.0 requires pytest <10); other packages installed normally
+- **Caching**: Dependencies cached by `requirements.txt` checksum; pip packages and virtualenv both cached to reduce reinstall time
+- **MySQL Setup**: Waits up to 30 seconds for MySQL service to be ready before running migrations; required because CircleCI service container initialization takes time
+- **Migrations**: Runs `python manage.py migrate` before tests to ensure DB schema is current
+- **Coverage**: `pytest-cov` measures code coverage and generates `coverage.xml` artifact for CI dashboard tracking
+- **Test Results**: JUnit XML results stored for CircleCI test visualization
+- **Resource**: `small` resource class for cost efficiency
+- **Environment**: `CI=true` sets SQLite mode; `DJANGO_SETTINGS_MODULE` ensures correct Django config
+
 **Testing:** Uses pytest + pytest-django. Configuration is in `pytest.ini` (sets `DJANGO_SETTINGS_MODULE`). Shared fixtures (users, authorities, shops, warehouses) are defined in `conftest.py` at the project root. Each `Authority` fixture is created with an explicit `id` matching the role constants (`AUTHORITY_ADMIN=1`, `AUTHORITY_SHOP=2`, `AUTHORITY_WAREHOUSE=3`) so that permission logic in views and forms works correctly during tests.
 
 Test files per app:
