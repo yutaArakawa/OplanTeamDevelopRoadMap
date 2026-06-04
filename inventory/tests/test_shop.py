@@ -309,10 +309,10 @@ class TestShopList:
         assert shop.pk not in ids
 
     def test_address_filter(self, client, admin_user, shop, shop2):
-        """住所キーワードで絞り込むと一致する店舗のみ表示される"""
-        # shop は '東京都渋谷区', shop2 は '大阪府大阪市'
+        """都道府県で絞り込むと一致する店舗のみ表示される"""
+        # shop は '東京都', shop2 は '大阪府'
         client.force_login(admin_user)
-        response = client.get(reverse('shop_list') + '?address=東京')
+        response = client.get(reverse('shop_list') + '?prefecture=東京都')
         ids = [s.pk for s in response.context['shops']]
         assert shop.pk in ids
         assert shop2.pk not in ids

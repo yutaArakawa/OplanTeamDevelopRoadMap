@@ -243,10 +243,10 @@ class TestWarehouseList:
         assert warehouse.pk not in ids
 
     def test_address_filter(self, client, admin_user, warehouse, warehouse2):
-        """住所キーワードで絞り込むと一致する倉庫のみ表示される"""
-        # warehouse は '東京都渋谷区', warehouse2 は '大阪府大阪市'
+        """都道府県で絞り込むと一致する倉庫のみ表示される"""
+        # warehouse は '東京都', warehouse2 は '大阪府'
         client.force_login(admin_user)
-        response = client.get(reverse('warehouse_list') + '?address=東京')
+        response = client.get(reverse('warehouse_list') + '?prefecture=東京都')
         ids = [w.pk for w in response.context['warehouse_list']]
         assert warehouse.pk in ids
         assert warehouse2.pk not in ids
