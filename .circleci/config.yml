@@ -24,10 +24,11 @@ jobs:
       # =============================================
       # キャッシュ復元（pip パッケージ）
       # =============================================
-      - restore_cache:
-          keys:
-            - deps-{{ checksum "requirements.txt" }}
-            - deps-
+      # 注: pytest-splitインストール問題のため、キャッシュを一時的にスキップ
+      # - restore_cache:
+      #     keys:
+      #       - deps-{{ checksum "requirements.txt" }}
+      #       - deps-
 
       # =============================================
       # 依存関係のインストール
@@ -39,6 +40,7 @@ jobs:
             . venv/bin/activate
             pip install --upgrade pip
             pip install -r requirements.txt
+            pip list | grep pytest
 
       # =============================================
       # キャッシュ保存（pip パッケージ + virtualenv）
