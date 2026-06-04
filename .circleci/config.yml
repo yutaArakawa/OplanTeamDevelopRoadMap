@@ -86,9 +86,8 @@ jobs:
       - run:
           name: Run tests (parallelized)
           command: |
-            . venv/bin/activate
             mkdir -p test-results
-            pytest \
+            ./venv/bin/pytest \
               --split-by=timings \
               --splitting-algorithm=least_duration \
               --cov=. \
