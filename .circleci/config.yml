@@ -107,12 +107,14 @@ jobs:
           command: |
             mkdir -p test-results
             ./venv/bin/pytest \
-              --split-by=timings \
+              --splits=4 \
+              --group=$((CIRCLE_NODE_INDEX + 1)) \
               --splitting-algorithm=least_duration \
+              --durations-path=.circleci/.test_durations \
+              --store-durations \
               --cov=. \
               --cov-report=xml \
-              --junitxml=test-results/junit.xml \
-              --durations-file=.circleci/.test_durations
+              --junitxml=test-results/junit.xml
           timeout: 1800  # 30分
 
       # =============================================
