@@ -18,6 +18,9 @@ jobs:
     parallelism: 4
     resource_class: small  # コスト効率
 
+    environment:
+      PATH: /home/circleci/project/venv/bin:$PATH
+
     steps:
       - checkout
 
