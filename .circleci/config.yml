@@ -83,6 +83,21 @@ jobs:
             python manage.py migrate
 
       # =============================================
+      # デバッグ：インストール確認
+      # =============================================
+      - run:
+          name: Debug - Check pytest installation
+          command: |
+            echo "=== Python version ==="
+            ./venv/bin/python --version
+            echo "=== Pip list (pytest related) ==="
+            ./venv/bin/pip list | grep -E "pytest|split|cov"
+            echo "=== pytest --version ==="
+            ./venv/bin/pytest --version
+            echo "=== pytest plugins ==="
+            ./venv/bin/pytest --co -q 2>&1 | head -5
+
+      # =============================================
       # テスト実行（並列化 + カバレッジ測定）
       # =============================================
       - run:
