@@ -40,6 +40,8 @@ jobs:
             . venv/bin/activate
             pip install --upgrade pip
             pip install -r requirements.txt
+            # pytest-splitの確実なロードのため、--force-reinstallする
+            pip install --force-reinstall --no-cache-dir pytest-split
             pip list | grep pytest
 
       # =============================================
