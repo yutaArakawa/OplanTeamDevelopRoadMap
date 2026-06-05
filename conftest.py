@@ -1,7 +1,7 @@
 import pytest
 from accounts.models import User, Authority
 from inventory.models import GoodsCategory, Goods, Shop, Warehouse, WarehouseStock, Relation
-from inquiry.models import Inquiry
+from inquiry.models import Inquiry, InquiryCategory
 
 
 @pytest.fixture
@@ -129,19 +129,26 @@ def relation(db, shop, warehouse):
 
 
 @pytest.fixture
-def inquiry_to_admin(db, authority_admin, shop_user):
+def inquiry_category(db):
+    """問い合わせカテゴリー fixture"""
+    return InquiryCategory.objects.create(category_name='その他')
+
+
+@pytest.fixture
+def inquiry_to_admin(db, authority_admin, shop_user, inquiry_category):
     """店舗スタッフ → 管理者 宛の問い合わせ"""
     return Inquiry.objects.create(
         to_authority=authority_admin,
         from_user=shop_user,
         from_authority=shop_user.authority,
         from_belong_shop=shop_user.shop,
+        inquiry_category=inquiry_category,
         inquiry_details='管理者宛のテスト問い合わせ',
     )
 
 
 @pytest.fixture
-def inquiry_to_shop(db, authority_shop, warehouse_user, relation):
+def inquiry_to_shop(db, authority_shop, warehouse_user, relation, inquiry_category):
     """倉庫スタッフ → 店舗スタッフ 宛の問い合わせ"""
     return Inquiry.objects.create(
         to_authority=authority_shop,
@@ -149,12 +156,13 @@ def inquiry_to_shop(db, authority_shop, warehouse_user, relation):
         from_authority=warehouse_user.authority,
         from_belong_warehouse=warehouse_user.warehouse,
         to_relation=relation,
+        inquiry_category=inquiry_category,
         inquiry_details='店舗スタッフ宛のテスト問い合わせ',
     )
 
 
 @pytest.fixture
-def inquiry_to_warehouse(db, authority_warehouse, shop_user, relation):
+def inquiry_to_warehouse(db, authority_warehouse, shop_user, relation, inquiry_category):
     """店舗スタッフ → 倉庫スタッフ 宛の問い合わせ"""
     return Inquiry.objects.create(
         to_authority=authority_warehouse,
@@ -162,5 +170,6 @@ def inquiry_to_warehouse(db, authority_warehouse, shop_user, relation):
         from_authority=shop_user.authority,
         from_belong_shop=shop_user.shop,
         to_relation=relation,
+        inquiry_category=inquiry_category,
         inquiry_details='倉庫スタッフ宛のテスト問い合わせ',
     )

@@ -13,6 +13,10 @@
                 <td>{{ inquiry.inquiry_title|default:"-" }}</td>
             </tr>
             <tr>
+                <th class="w-25 table-secondary">カテゴリ</th>
+                <td>{{ inquiry.inquiry_category|default:"-" }}</td>
+            </tr>
+            <tr>
                 <th class="table-secondary">問い合わせ内容</th>
                 <td class="text-prewrap">{{ inquiry.inquiry_details }}</td>
             </tr>

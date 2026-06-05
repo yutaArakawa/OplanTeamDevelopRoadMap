@@ -61,6 +61,15 @@
             {% endif %}
         </div>
 
+        <!-- カテゴリ -->
+        <div class="mb-3">
+            <label class="form-label">カテゴリ</label>
+            {{ form.inquiry_category }}
+            {% if form.inquiry_category.errors %}
+            <div class="text-danger">{{ form.inquiry_category.errors }}</div>
+            {% endif %}
+        </div>
+
         <!-- 問い合わせ内容 -->
         <div class="mb-3">
             <label class="form-label">問い合わせ内容 <span class="text-danger">*</span></label>

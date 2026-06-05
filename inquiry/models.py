@@ -76,6 +76,11 @@ class Inquiry(BaseModel):
         choices=Status.choices,
         default=Status.PENDING
     )
+    inquiry_category = models.ForeignKey(
+        'InquiryCategory',
+        on_delete=models.PROTECT,
+        related_name='inquiries'
+    )
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -95,3 +100,41 @@ class Inquiry(BaseModel):
 
     def __str__(self):
         return f'問い合わせID:{self.id}'
+
+class InquiryCategory(BaseModel):
+    category_name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['category_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_inquiry_category_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_categories = InquiryCategory.active_objects.filter(
+            category_name=self.category_name
+        )
+        if self.pk:
+            duplicate_categories = duplicate_categories.exclude(pk=self.pk)
+
+        if duplicate_categories.exists():
+            raise ValidationError({
+                'category_name': '同じカテゴリ名は登録できません。'
+            })
+
+    def has_related_records(self):
+        return self.inquiries.filter(delete_flg=False).exists()
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
+    def __str__(self):
+        return self.category_name

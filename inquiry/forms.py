@@ -1,5 +1,5 @@
 from django import forms
-from inquiry.models import Inquiry
+from inquiry.models import Inquiry, InquiryCategory
 from accounts.models import Authority
 from inventory.models import Relation
 from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
@@ -10,7 +10,7 @@ class InquiryCreateForm(forms.ModelForm):
 
     class Meta:
         model = Inquiry
-        fields = ['to_authority', 'to_relation', 'inquiry_title', 'inquiry_details']
+        fields = ['to_authority', 'to_relation', 'inquiry_category', 'inquiry_title', 'inquiry_details']
 
     def __init__(self, *args, login_user=None, relation_id=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -27,6 +27,10 @@ class InquiryCreateForm(forms.ModelForm):
             'id': 'belonging-select',
         })
         self.fields['to_relation'].required = False
+        self.fields['inquiry_category'].widget.attrs.update({
+            'class': 'form-select',
+            'id': 'category-select',
+        })
         self.fields['inquiry_details'].widget = forms.Textarea(
             attrs={'class': 'form-control', 'rows': 6}
         )
@@ -107,7 +111,7 @@ class InquiryGuestCreateForm(forms.ModelForm):
         model = Inquiry
         fields = [
             'from_name', 'from_authority', 'from_belong_shop',
-            'from_belong_warehouse', 'inquiry_title', 'inquiry_details',
+            'from_belong_warehouse', 'inquiry_category', 'inquiry_title', 'inquiry_details',
         ]
 
     def __init__(self, *args, **kwargs):
@@ -127,6 +131,10 @@ class InquiryGuestCreateForm(forms.ModelForm):
             'class': 'form-select',
             'id': 'belonging-select-warehouse',
             })
+        self.fields['inquiry_category'].widget.attrs.update({
+            'class': 'form-select',
+            'id': 'category-select',
+        })
         self.fields['inquiry_details'].widget = forms.Textarea(
             attrs={'class': 'form-control', 'rows': 6}
         )
@@ -153,3 +161,16 @@ class InquiryStatusUpdateForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['status'].widget.attrs.update({'class': 'form-select'})
+
+class InquiryCategoryForm(forms.ModelForm):
+    """問い合わせカテゴリ作成フォーム"""
+    class Meta:
+        model = InquiryCategory
+        fields = ('category_name',)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['category_name'].widget.attrs.update({
+            'class': 'form-control'
+        })
