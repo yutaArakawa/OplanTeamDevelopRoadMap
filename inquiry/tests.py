@@ -1,7 +1,7 @@
 import pytest
 from django.urls import reverse
-from inquiry.forms import InquiryCreateForm
-from inquiry.models import Inquiry
+from inquiry.forms import InquiryCreateForm, InquiryCategoryForm
+from inquiry.models import Inquiry, InquiryCategory
 from common.constants import AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
 
 pytestmark = pytest.mark.django_db
@@ -118,12 +118,13 @@ class TestInquiryCreate:
         assert response.status_code == 200
         assert 'form' in response.context
 
-    def test_shop_user_post_to_admin_success(self, client, shop_user, authority_admin):
+    def test_shop_user_post_to_admin_success(self, client, shop_user, authority_admin, inquiry_category):
         """店舗スタッフが管理者宛に問い合わせを送信できる"""
         client.force_login(shop_user)
         response = client.post(reverse('inquiry_create'), {
             'to_authority': authority_admin.id,
             'to_relation': '',
+            'inquiry_category': inquiry_category.id,
             'inquiry_title': 'テスト件名',
             'inquiry_details': 'テスト問い合わせ内容',
         })
@@ -163,13 +164,14 @@ class TestInquiryGuestCreate:
         response = client.get(reverse('inquiry_create_guest'))
         assert response.status_code == 200
 
-    def test_post_success_redirects_to_guest_create(self, client, authority_admin, authority_shop):
+    def test_post_success_redirects_to_guest_create(self, client, authority_admin, authority_shop, inquiry_category):
         """有効なデータを送信すると管理者宛に問い合わせが作成されゲスト問い合わせ画面にリダイレクト"""
         response = client.post(reverse('inquiry_create_guest'), {
             'from_name': 'テストゲスト',
             'from_authority': authority_shop.id,
             'from_belong_shop': '',
             'from_belong_warehouse': '',
+            'inquiry_category': inquiry_category.id,
             'inquiry_title': 'ゲストテスト件名',
             'inquiry_details': 'ゲストテスト問い合わせ内容',
         })
@@ -414,3 +416,146 @@ class TestInquiryCreateViewRelationParam:
         form = response.context['form']
         assert 'to_authority' not in form.initial
         assert 'to_relation' not in form.initial
+
+
+# ---------------------------------------------------------------------------
+# 問い合わせカテゴリー
+# ---------------------------------------------------------------------------
+
+class TestInquiryCategory:
+
+    def test_inquiry_category_create(self, db):
+        """InquiryCategory の作成テスト"""
+        category = InquiryCategory.objects.create(category_name='技術サポート')
+        assert category.category_name == '技術サポート'
+        assert category.delete_flg is False
+
+    def test_inquiry_category_duplicate_validation(self, db, inquiry_category):
+        """同じカテゴリ名は登録できない"""
+        category = InquiryCategory(category_name=inquiry_category.category_name)
+        with pytest.raises(Exception):  # ValidationError
+            category.full_clean()
+
+    def test_inquiry_category_has_related_records_true(self, db, inquiry_to_admin):
+        """has_related_records が True を返す（関連レコード存在）"""
+        category = inquiry_to_admin.inquiry_category
+        assert category.has_related_records() is True
+
+    def test_inquiry_category_has_related_records_false(self, db, inquiry_category):
+        """has_related_records が False を返す（関連レコード非存在）"""
+        assert inquiry_category.has_related_records() is False
+
+    def test_inquiry_category_soft_delete(self, db, inquiry_category):
+        """soft_delete でレコードが論理削除される"""
+        inquiry_category.soft_delete()
+        assert inquiry_category.delete_flg is True
+        # active_objects には表示されない
+        assert InquiryCategory.active_objects.filter(pk=inquiry_category.pk).count() == 0
+
+    def test_inquiry_category_list_view_unauthenticated(self, client):
+        """未ログインユーザーはログイン画面にリダイレクト"""
+        response = client.get(reverse('inquiry_category_list'))
+        assert response.status_code == 302
+        assert '/accounts/login/' in response['Location']
+
+    def test_inquiry_category_list_view_non_admin(self, client, shop_user):
+        """非管理者はアクセス不可"""
+        client.force_login(shop_user)
+        response = client.get(reverse('inquiry_category_list'))
+        assert response.status_code == 403
+
+    def test_inquiry_category_list_view_admin(self, client, admin_user, inquiry_category):
+        """管理者は一覧表示可能"""
+        client.force_login(admin_user)
+        response = client.get(reverse('inquiry_category_list'))
+        assert response.status_code == 200
+        assert inquiry_category in response.context['category_list']
+
+    def test_inquiry_category_create_view_unauthenticated(self, client):
+        """未ログインユーザーはログイン画面にリダイレクト"""
+        response = client.get(reverse('inquiry_category_create'))
+        assert response.status_code == 302
+
+    def test_inquiry_category_create_view_non_admin(self, client, shop_user):
+        """非管理者はアクセス不可"""
+        client.force_login(shop_user)
+        response = client.get(reverse('inquiry_category_create'))
+        assert response.status_code == 403
+
+    def test_inquiry_category_create_view_admin_get(self, client, admin_user):
+        """管理者は create ページにアクセス可能"""
+        client.force_login(admin_user)
+        response = client.get(reverse('inquiry_category_create'))
+        assert response.status_code == 200
+        assert 'form' in response.context
+        assert isinstance(response.context['form'], InquiryCategoryForm)
+
+    def test_inquiry_category_create_view_admin_post(self, client, admin_user):
+        """管理者は新規カテゴリを登録可能"""
+        client.force_login(admin_user)
+        response = client.post(
+            reverse('inquiry_category_create'),
+            data={'category_name': '新規カテゴリ'}
+        )
+        assert response.status_code == 302
+        assert InquiryCategory.active_objects.filter(category_name='新規カテゴリ').exists()
+
+    def test_inquiry_category_create_duplicate_fails(self, client, admin_user, inquiry_category):
+        """重複したカテゴリ名は登録失敗"""
+        client.force_login(admin_user)
+        response = client.post(
+            reverse('inquiry_category_create'),
+            data={'category_name': inquiry_category.category_name}
+        )
+        assert response.status_code == 200  # フォーム再表示
+        assert 'form' in response.context
+        assert response.context['form'].errors
+
+    def test_inquiry_category_update_view_admin(self, client, admin_user, inquiry_category):
+        """管理者は update ページにアクセス可能"""
+        client.force_login(admin_user)
+        response = client.get(reverse('inquiry_category_edit', args=[inquiry_category.pk]))
+        assert response.status_code == 200
+        assert 'form' in response.context
+
+    def test_inquiry_category_update_view_post(self, client, admin_user, inquiry_category):
+        """管理者はカテゴリを更新可能"""
+        client.force_login(admin_user)
+        response = client.post(
+            reverse('inquiry_category_edit', args=[inquiry_category.pk]),
+            data={'category_name': '更新されたカテゴリ'}
+        )
+        assert response.status_code == 302
+        inquiry_category.refresh_from_db()
+        assert inquiry_category.category_name == '更新されたカテゴリ'
+
+    def test_inquiry_category_delete_view_with_related_records_fails(self, client, admin_user, inquiry_to_admin):
+        """関連する問い合わせがある場合は削除失敗"""
+        category = inquiry_to_admin.inquiry_category
+        client.force_login(admin_user)
+        response = client.post(
+            reverse('inquiry_category_delete', args=[category.pk])
+        )
+        assert response.status_code == 302
+        # soft_delete されていない
+        assert InquiryCategory.active_objects.filter(pk=category.pk).exists()
+
+    def test_inquiry_category_delete_view_without_related_records_succeeds(self, client, admin_user, inquiry_category):
+        """関連する問い合わせがない場合は削除成功"""
+        client.force_login(admin_user)
+        response = client.post(
+            reverse('inquiry_category_delete', args=[inquiry_category.pk])
+        )
+        assert response.status_code == 302
+        # soft_delete されている
+        assert not InquiryCategory.active_objects.filter(pk=inquiry_category.pk).exists()
+
+    def test_inquiry_category_filter_in_inquiry_list(self, client, admin_user, inquiry_to_admin):
+        """問い合わせ一覧でカテゴリーでフィルター可能"""
+        category = inquiry_to_admin.inquiry_category
+        client.force_login(admin_user)
+        url = reverse('inquiry_list') + f'?category={category.pk}'
+        response = client.get(url)
+        assert response.status_code == 200
+        # フィルターされたカテゴリーの問い合わせが表示される
+        assert inquiry_to_admin in response.context['received_inquiries']

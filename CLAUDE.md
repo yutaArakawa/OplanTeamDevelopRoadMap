@@ -108,6 +108,16 @@ This is a Django inventory/stock management system for a multi-location retail b
 - **問い合わせ詳細・ステータス更新** (`inquiry_detail/<pk>/`, `InquiryDetailView`) — Receiver can update status (未対応/対応中/対応済み); sender can view only.
 - **論理削除** (`inquiry_delete/<pk>/`, `InquiryDeleteView`) — Sender or receiver can soft-delete (`delete_flg=True`).
 
+**Inquiry category management (admin only):**
+
+- **InquiryCategory model** — Categorizes inquiries for better organization. Inherits from `BaseModel` for soft-delete support. Enforces unique category names (case-sensitive, only among non-deleted records) via `UniqueConstraint` with `condition=Q(delete_flg=False)` and model-level `clean()` validation. Provides `has_related_records()` method to check if category is linked to any inquiries before deletion.
+- **カテゴリ一覧** (`categories/`, `inquiry_category_list`, `InquiryCategoryListView`) — Admin-only view listing all active inquiry categories. Ordered by name.
+- **カテゴリ作成** (`categories/create/`, `inquiry_category_create`, `InquiryCategoryCreateView`) — Admin creates new categories. Supports inline creation via `next` parameter (similar to GoodsCategory pattern): form submission with `next=<url>` pre-filled appends `?category_created=<pk>` to redirect URL, allowing parent forms (e.g. inquiry creation) to pre-select newly created categories.
+- **カテゴリ編集** (`categories/<pk>/edit/`, `inquiry_category_edit`, `InquiryCategoryUpdateView`) — Admin updates category name. Template displays `can_delete` context flag (False if category has linked inquiries).
+- **カテゴリ削除** (`categories/<pk>/delete/`, `inquiry_category_delete`, `InquiryCategoryDeleteView`) — Admin soft-deletes categories. Checks `has_related_records()` before deletion; if related inquiries exist, shows error message and redirects without deleting.
+- **カテゴリ選択（問い合わせ作成時）** — Both `InquiryCreateView` and `InquiryGuestCreateView` include `inquiry_category` as a required field. Users must select a category when creating an inquiry. Form renders category field as `form-select` (Bootstrap).
+- **カテゴリフィルター（問い合わせ一覧）** — `InquiryListView` supports filtering both received and sent inquiries by category via `?category=<id>` query parameter. Passes all active categories to template context as `categories` for filter UI.
+
 **Key patterns:**
 
 - **Soft delete**: All models inherit from `BaseModel` which has `delete_flg`. Use `Model.active_objects` (filters `delete_flg=False`) for normal queries; `Model.objects` gives all records including deleted.
@@ -174,7 +184,7 @@ Test files per app:
 - `inventory/tests/test_shop.py` — Shop master CRUD, shop stock list/edit, shop delete
 - `inventory/tests/test_order.py` — order goods list, order create, CSV download/import, order history, CSV/PDF export (shop side)
 - `inventory/tests/test_relation.py` — relation list/create/delete, shop connected-warehouse list
-- `inquiry/tests.py` — inquiry list (received/sent, filters), inquiry create (auth checks, validation), guest inquiry, detail/status update, delete, form label_from_instance, relation query-param pre-population
+- `inquiry/tests.py` — inquiry list (received/sent, filters, category filter), inquiry create (auth checks, validation, category selection), guest inquiry, detail/status update, delete, form label_from_instance, relation query-param pre-population, **InquiryCategory CRUD** (list/create/update/delete admin-only views, duplicate name validation, related records check, soft delete, category filter in inquiry list), total 64 tests
 
 **Scheduled batch jobs:**
 

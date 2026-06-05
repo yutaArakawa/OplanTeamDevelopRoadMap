@@ -3,14 +3,16 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.views import View
-from django.views.generic import TemplateView
-from django.urls import reverse_lazy
+from django.views.generic import TemplateView, CreateView, UpdateView
+from django.urls import reverse_lazy, reverse
 
-from inquiry.models import Inquiry
-from inquiry.forms import InquiryCreateForm, InquiryGuestCreateForm, InquiryStatusUpdateForm
+from inquiry.models import Inquiry, InquiryCategory
+from inquiry.forms import InquiryCreateForm, InquiryGuestCreateForm, InquiryStatusUpdateForm, InquiryCategoryForm
 from accounts.models import Authority
 from inventory.models import Shop, Warehouse
 from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
+from common.mixins import AdminRequiredMixin, ShopStaffRequiredMixin, WarehouseStaffRequiredMixin
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit, urlparse
 
 
 # ---------------------------------------------------------------------------
@@ -58,6 +60,8 @@ class InquiryListView(LoginRequiredMixin, TemplateView):
         # ---- 受信一覧 ----
         received = Inquiry.active_objects.filter(
             to_authority_id=user.authority_id
+        ).select_related(
+            'inquiry_category',
         )
         if user.authority_id == AUTHORITY_SHOP:
             received = received.filter(to_relation__shop=user.shop)
@@ -69,9 +73,17 @@ class InquiryListView(LoginRequiredMixin, TemplateView):
             'to_relation',
             'to_relation__shop',
             'to_relation__warehouse',
+            'inquiry_category',
             )
 
         # ---- 絞り込み (受信側) ----
+        sort_category = self.request.GET.get('category')
+        if sort_category:
+            try:
+                received = received.filter(inquiry_category_id=int(sort_category))
+            except ValueError:
+                pass
+
         sort_authority = self.request.GET.get('authority')
         if sort_authority:
             try:
@@ -102,6 +114,13 @@ class InquiryListView(LoginRequiredMixin, TemplateView):
                 pass
 
         # ---- 絞り込み (送信側) ----
+        sort_sender_category = self.request.GET.get('sender_category')
+        if sort_sender_category:
+            try:
+                sent = sent.filter(inquiry_category_id=int(sort_sender_category))
+            except ValueError:
+                pass
+
         sort_sender_to_authority = self.request.GET.get('sender_to_authority')
         if sort_sender_to_authority:
             try:
@@ -136,6 +155,7 @@ class InquiryListView(LoginRequiredMixin, TemplateView):
 
         # 絞り込みUI用マスタ
         # 宛先権限: 自分と異なる権限のみ選択可能
+        context['categories'] = InquiryCategory.active_objects.all()
         context['authorities'] = Authority.objects.exclude(
             id=user.authority_id
         )
@@ -200,6 +220,7 @@ class InquiryDetailView(LoginRequiredMixin, View):
             Inquiry.active_objects.select_related(
                 'to_relation__warehouse',
                 'to_relation__shop',
+                'inquiry_category',
             ),
             pk=pk
         )
@@ -253,3 +274,103 @@ class InquiryDeleteView(LoginRequiredMixin, View):
         inquiry.delete_flg = True
         inquiry.save()
         return redirect('inquiry_list')
+
+class InquiryCategoryListView(AdminRequiredMixin, TemplateView):
+    template_name = 'inquiry/inquiry_category_list.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['category_list'] = InquiryCategory.active_objects.order_by('category_name')
+        return context
+      
+class InquiryCategoryCreateView(AdminRequiredMixin, CreateView):
+    template_name = 'inquiry/inquiry_category_create.html'
+    model = InquiryCategory
+    form_class = InquiryCategoryForm
+    success_url = reverse_lazy('inquiry_category_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '問い合わせカテゴリ作成'
+        context['submit_label'] = '登録'
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, '問い合わせカテゴリを登録しました。')
+        return response
+
+    def form_invalid(self, form):
+        next_url = self.request.POST.get('next')
+        if next_url:
+            category_name_errors = form.errors.get('category_name')
+            if category_name_errors:
+                messages.error(self.request, category_name_errors[0])
+            else:
+                messages.error(self.request, '問い合わせカテゴリを登録できませんでした。')
+
+            # open redirect チェック：内部リンクのみ許可
+            parsed = urlparse(next_url)
+            if not parsed.netloc and next_url.startswith('/'):
+                return redirect(next_url)
+
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        next_url = self.request.POST.get('next')
+        if not next_url:
+            return super().get_success_url()
+
+        parsed_url = urlsplit(next_url)
+        query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
+        query_params['category_created'] = str(self.object.pk)
+        return urlunsplit((
+            parsed_url.scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            urlencode(query_params),
+            parsed_url.fragment,
+        ))
+
+class InquiryCategoryUpdateView(AdminRequiredMixin, UpdateView):
+    template_name = 'inquiry/inquiry_category_create.html'
+    model = InquiryCategory
+    form_class = InquiryCategoryForm
+    success_url = reverse_lazy('inquiry_category_list')
+
+    def get_queryset(self):
+        return InquiryCategory.active_objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '問い合わせカテゴリ編集'
+        context['submit_label'] = '更新'
+        context['can_delete'] = not self.object.has_related_records()
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, '問い合わせカテゴリを更新しました。')
+        return response
+
+
+class InquiryCategoryDeleteView(AdminRequiredMixin, View):
+    def post(self, request, pk):
+        category = get_object_or_404(InquiryCategory.active_objects, pk=pk)
+
+        if category.has_related_records():
+            messages.error(
+                request,
+                '問い合わせに紐づくカテゴリのため削除できません。'
+            )
+        else:
+            category.soft_delete()
+            messages.success(request, '問い合わせカテゴリを削除しました。')
+
+        # 共通処理：next URL の検証とリダイレクト
+        next_url = request.POST.get('next')
+        if next_url:
+            parsed = urlparse(next_url)
+            if not parsed.netloc and parsed.path.startswith('/'):
+                return redirect(next_url)
+        return redirect('inquiry_category_list')

@@ -3,16 +3,31 @@
 {% block title %}問い合わせ一覧{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center mb-3">
+<div class="d-flex align-items-center justify-content-between mb-3">
     <h2 class="mb-0">問い合わせ一覧</h2>
 
-    {% if user.authority_id != AUTHORITY_ADMIN %}
-    <a href="{% url 'inquiry_create' %}" class="btn btn-primary ms-auto">問い合わせ</a>
+    {% if user.authority_id == AUTHORITY_ADMIN %}
+    <a href="{% url 'inquiry_category_list' %}" class="btn btn-primary">
+        カテゴリ管理
+    </a>
+    {% else %}
+    <a href="{% url 'inquiry_create' %}" class="btn btn-primary">問い合わせ</a>
     {% endif %}
 </div>
 
 <!-- 絞り込みフォーム -->
 <form method="get" class="row g-2 mb-4">
+    <div class="col-auto">
+        <select name="category" class="form-select">
+            <option value="">カテゴリ -</option>
+            {% for category in categories %}
+            <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"s" %}selected{% endif %}>
+                {{ category.category_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
     {% if user.authority_id == AUTHORITY_ADMIN %}
     <div class="col-auto">
         <select name="authority" class="form-select">
@@ -49,6 +64,7 @@
     <thead class="table-light">
         <tr>
             <th>問い合わせ内容</th>
+            <th>カテゴリ</th>
             <th>権限</th>
             <th>所属</th>
             <th>名前</th>
@@ -62,6 +78,8 @@
         {% for inquiry in received_inquiries %}
         <tr class="align-middle">
             <td>{{ inquiry.inquiry_details|truncatechars:30 }}</td>
+
+            <td>{{ inquiry.inquiry_category.category_name }}</td>
 
             <td>{{ inquiry.from_authority }}</td>
 
@@ -108,6 +126,17 @@
 <!-- 絞り込みフォーム(送信側) -->
 {% if request.user.authority_id == AUTHORITY_SHOP or request.user.authority_id == AUTHORITY_WAREHOUSE %}
 <form method="get" class="row g-2 mb-4">
+    <div class="col-auto">
+        <select name="sender_category" class="form-select">
+            <option value="">カテゴリ -</option>
+            {% for category in categories %}
+            <option value="{{ category.id }}" {% if request.GET.sender_category == category.id|stringformat:"s" %}selected{% endif %}>
+                {{ category }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
     <div class="col-auto">
         <select name="sender_to_authority" id="authority-select" class="form-select">
             <option value="">宛先権限 -</option>
@@ -168,6 +197,7 @@
     <thead class="table-light">
         <tr>
             <th>問い合わせ内容</th>
+            <th>カテゴリ</th>
             <th>宛先権限</th>
             <th>宛先所属</th>
             <th>送信日時</th>
@@ -180,6 +210,8 @@
         {% for inquiry in sent_inquiries %}
         <tr class="align-middle">
             <td>{{ inquiry.inquiry_details|truncatechars:30 }}</td>
+
+            <td>{{ inquiry.inquiry_category }}</td>
 
             <td>{{ inquiry.to_authority }}</td>
 
