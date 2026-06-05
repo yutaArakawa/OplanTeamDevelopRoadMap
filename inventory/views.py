@@ -69,9 +69,21 @@ class WarehouseCreateView(AdminRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-        messages.success(self.request, '倉庫を登録しました。')
-        return response
+        try:
+            with transaction.atomic():
+                goods_list = list(Goods.active_objects.select_for_update().all())
+                response = super().form_valid(form)
+                warehouse = self.object
+                WarehouseStock.objects.bulk_create([
+                    WarehouseStock(warehouse=warehouse, goods=goods, stock=0)
+                    for goods in goods_list
+                ])
+            messages.success(self.request, '倉庫を登録しました。')
+            return response
+        except Exception as e:
+            logger.error("Error occurred while creating warehouse: %s", str(e))
+            messages.error(self.request, '倉庫の登録に失敗しました。')
+            return super().form_invalid(form)
 
 class WarehouseUpdateView(AdminRequiredMixin, UpdateView):
     template_name = 'inventory/warehouse_create.html'
@@ -346,9 +358,21 @@ class ShopCreateView(AdminRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-        messages.success(self.request, '店舗を登録しました。')
-        return response
+        try:
+            with transaction.atomic():
+                goods_list = list(Goods.active_objects.select_for_update().all())
+                response = super().form_valid(form)
+                shop = self.object
+                ShopStock.objects.bulk_create([
+                    ShopStock(shop=shop, goods=goods, stock=0)
+                    for goods in goods_list
+                ])
+            messages.success(self.request, '店舗を登録しました。')
+            return response
+        except Exception as e:
+            logger.error("Error occurred while creating shop: %s", str(e))
+            messages.error(self.request, '店舗の登録に失敗しました。')
+            return super().form_invalid(form)
 
 class ShopUpdateView(AdminRequiredMixin, UpdateView):
     template_name = 'inventory/shop_create.html'

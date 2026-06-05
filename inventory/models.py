@@ -69,11 +69,12 @@ class Warehouse(BaseModel):
     def soft_delete(self):
         self.delete_flg = True
         self.save(update_fields=['delete_flg', 'updated_at'])
+        self.warehousestock_set.filter(delete_flg=False).update(delete_flg=True)
 
     def has_related_records(self):
         return (
             self.user_set.filter(delete_flg=False).exists()
-            or self.warehousestock_set.filter(delete_flg=False).exists()
+            or self.warehousestock_set.filter(delete_flg=False, stock__gt=0).exists()
             or self.relation_set.filter(delete_flg=False).exists()
         )
 
@@ -90,6 +91,26 @@ class Shop(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['shop_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_shop_name'
+            )
+        ]
+
+    def clean(self):
+        duplicate = Shop.active_objects.filter(
+            shop_name=self.shop_name
+        )
+        if self.pk:
+            duplicate = duplicate.exclude(pk=self.pk)
+        if duplicate.exists():
+            raise ValidationError(
+                {'shop_name': '既に店舗名は存在します'}
+            )
+
     def get_full_address(self):
         parts = [
             self.prefecture,
@@ -103,11 +124,12 @@ class Shop(BaseModel):
     def soft_delete(self):
         self.delete_flg = True
         self.save(update_fields=['delete_flg', 'updated_at'])
+        self.shopstock_set.filter(delete_flg=False).update(delete_flg=True)
 
     def has_related_records(self):
         return (
             self.user_set.filter(delete_flg=False).exists()
-            or self.shopstock_set.filter(delete_flg=False).exists()
+            or self.shopstock_set.filter(delete_flg=False, stock__gt=0).exists()
             or self.relation_set.filter(delete_flg=False).exists()
             or self.monthlyordersummary_set.filter(delete_flg=False).exists()
         )
