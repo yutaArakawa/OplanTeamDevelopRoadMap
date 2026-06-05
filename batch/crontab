@@ -1,0 +1,9 @@
+# スケジュールバッチジョブ用システムcrontab
+# cron実行環境の環境変数
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+TZ=Asia/Tokyo
+PYTHONPATH=/app
+DJANGO_SETTINGS_MODULE=config.settings
+
+# 月次注文サマリー集計バッチ
+0 23 * * * root bash /app/batch/run_monthly_order_summary.sh >> /var/log/cron.log 2>&1

@@ -10,6 +10,8 @@ from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUS
 from inventory.models import (
     Goods, GoodsCategory, Order, OrderGoods, Shop, ShopStock, Warehouse, WarehouseStock
 )
+from dashboard.models import MonthlyOrderSummary
+from dashboard import services
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
@@ -30,24 +32,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ).count()
 
         elif user.authority_id == AUTHORITY_SHOP:
-            one_month_ago = timezone.now() - timedelta(days=30)
-            context['shop_ranking'] = (
-                OrderGoods.active_objects
-                .filter(
-                    order__relation__shop=user.shop,
-                    order__ordered_at__gte=one_month_ago
-                )
-                .values('goods__goods_name')
-                .annotate(total=Sum('quantity'))
-                .order_by('-total')[:10]
-            )
-            context['all_shop_ranking'] = (
-                OrderGoods.active_objects
-                .filter(order__ordered_at__gte=one_month_ago)
-                .values('goods__goods_name')
-                .annotate(total=Sum('quantity'))
-                .order_by('-total')[:10]
-            )
+            yesterday = timezone.now().date() - timedelta(days=1)
+            # ログイン店舗の昨日時点の1ヶ月の発注ランキングデータを取得
+            monthly_order_summary_by_shop = services.get_monthly_order_summary(yesterday, shop=user.shop)
+            login_shop_ranking = services.get_order_ranking(monthly_order_summary_by_shop, limit=10)
+            # 昨日時点の全店舗の1ヶ月の発注ランキングデータを取得
+            monthly_order_summary = services.get_monthly_order_summary(yesterday)
+            all_shop_ranking = services.get_order_ranking(monthly_order_summary, limit=10)
+
+            context['shop_ranking'] = login_shop_ranking
+            context['all_shop_ranking'] = all_shop_ranking
 
         elif user.authority_id == AUTHORITY_WAREHOUSE:
             warehouse_stocks = WarehouseStock.active_objects.filter(
