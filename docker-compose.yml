@@ -28,6 +28,16 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+  
+  cron:
+    build: .
+    command: cron -f
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    environment:
+      - TZ=Asia/Tokyo
 
 volumes:
   mysql_data:
