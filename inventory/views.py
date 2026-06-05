@@ -28,6 +28,7 @@ from inventory.forms import (
     OrderForm
 )
 from inventory.models import Goods, GoodsCategory, Relation, Warehouse, Shop, WarehouseStock, ShopStock, Order, OrderGoods
+from inventory.constants.prefectures import PREFECTURE_CHOICES
 from inventory import services
 
 from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
@@ -41,18 +42,14 @@ class WarehouseListView(AdminRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
 
         warehouses = Warehouse.active_objects.all()
-        address_query = self.request.GET.get('address', '').strip()
+        selected_prefecture = self.request.GET.get('prefecture', '')
 
-        if address_query:
-            warehouses = warehouses.filter(
-                Q(prefecture__icontains=address_query)
-                | Q(city__icontains=address_query)
-                | Q(address1__icontains=address_query)
-                | Q(address2__icontains=address_query)
-            )
+        if selected_prefecture:
+            warehouses = warehouses.filter(prefecture=selected_prefecture)
 
         context['warehouse_list'] = warehouses.order_by('warehouse_name')
-        context['selected_address'] = address_query
+        context['selected_prefecture'] = selected_prefecture
+        context['prefecture_choices'] = PREFECTURE_CHOICES
         return context
 
 
@@ -329,17 +326,13 @@ class ShopListView(AdminRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         shops = Shop.active_objects.all()
-        address_query = self.request.GET.get('address', '').strip()
+        selected_prefecture = self.request.GET.get('prefecture', '')
 
-        if address_query:
-            shops = shops.filter(
-                Q(prefecture__icontains=address_query)
-                | Q(city__icontains=address_query)
-                | Q(address1__icontains=address_query)
-                | Q(address2__icontains=address_query)
-            )
+        if selected_prefecture:
+            shops = shops.filter(prefecture=selected_prefecture)
 
-        context['selected_address'] = address_query
+        context['selected_prefecture'] = selected_prefecture
+        context['prefecture_choices'] = PREFECTURE_CHOICES
         shops = shops.order_by('shop_name')
         context['shops'] = shops
         return context
