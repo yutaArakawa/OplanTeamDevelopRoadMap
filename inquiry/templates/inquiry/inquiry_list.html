@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+
+{% block title %}問い合わせ一覧{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="mb-0">問い合わせ一覧</h2>
+
+    {% if user.authority_id == AUTHORITY_ADMIN %}
+    <a href="{% url 'inquiry_category_list' %}" class="btn btn-primary">
+        カテゴリ管理
+    </a>
+    {% else %}
+    <a href="{% url 'inquiry_create' %}" class="btn btn-primary">問い合わせ</a>
+    {% endif %}
+</div>
+
+<!-- 絞り込みフォーム -->
+<form method="get" class="row g-2 mb-4">
+    <div class="col-auto">
+        <select name="category" class="form-select">
+            <option value="">カテゴリ -</option>
+            {% for category in categories %}
+            <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"s" %}selected{% endif %}>
+                {{ category.category_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {% if user.authority_id == AUTHORITY_ADMIN %}
+    <div class="col-auto">
+        <select name="authority" class="form-select">
+            <option value="">権限 -</option>
+            {% for auth in authorities %}
+            <option value="{{ auth.id }}" {% if request.GET.authority == auth.id|stringformat:"s" %}selected{% endif %}>
+                {{ auth }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    <div class="col-auto">
+        <select name="status" class="form-select">
+            <option value="">ステータス -</option>
+            {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if request.GET.status == val|stringformat:"s" %}selected{% endif %}>
+                {{ label }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary">絞り込み</button>
+        <a href="{% url 'inquiry_list' %}" class="btn btn-link">リセット</a>
+    </div>
+</form>
+
+<!-- 受信一覧 -->
+<h4>受信一覧</h4>
+<table class="table table-hover mb-5">
+    <thead class="table-light">
+        <tr>
+            <th>問い合わせ内容</th>
+            <th>カテゴリ</th>
+            <th>権限</th>
+            <th>所属</th>
+            <th>名前</th>
+            <th>送信日時</th>
+            <th>ステータス</th>
+            <th>詳細</th>
+            <th>削除</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for inquiry in received_inquiries %}
+        <tr class="align-middle">
+            <td>{{ inquiry.inquiry_details|truncatechars:30 }}</td>
+
+            <td>{{ inquiry.inquiry_category.category_name }}</td>
+
+            <td>{{ inquiry.from_authority }}</td>
+
+            <td>
+                {% if inquiry.from_belong_shop %}
+                    {{ inquiry.from_belong_shop }}
+                {% elif inquiry.from_belong_warehouse %}
+                    {{ inquiry.from_belong_warehouse }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+
+            <td>
+                {% if inquiry.from_user %}
+                    {{ inquiry.from_user.username }}
+                {% else %}
+                    {{ inquiry.from_name|default:"-" }}
+                {% endif %}
+            </td>
+
+            <td>{{ inquiry.created_at|date:"Y/m/d H:i" }}</td>
+
+            <td>{{ inquiry.get_status_display }}</td>
+
+            <td>
+                <a href="{% url 'inquiry_detail' pk=inquiry.pk %}" class="btn btn-sm btn-outline-primary">詳細</a>
+            </td>
+
+            <td>
+                <form method="post" action="{% url 'inquiry_delete' pk=inquiry.pk %}"
+                      onsubmit="return confirm('本当に削除しますか？');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted">受信した問い合わせはありません</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- 絞り込みフォーム(送信側) -->
+{% if request.user.authority_id == AUTHORITY_SHOP or request.user.authority_id == AUTHORITY_WAREHOUSE %}
+<form method="get" class="row g-2 mb-4">
+    <div class="col-auto">
+        <select name="sender_category" class="form-select">
+            <option value="">カテゴリ -</option>
+            {% for category in categories %}
+            <option value="{{ category.id }}" {% if request.GET.sender_category == category.id|stringformat:"s" %}selected{% endif %}>
+                {{ category }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-auto">
+        <select name="sender_to_authority" id="authority-select" class="form-select">
+            <option value="">宛先権限 -</option>
+            {% for auth in authorities %}
+            <option value="{{ auth.id }}" {% if request.GET.sender_to_authority == auth.id|stringformat:"s" %}selected{% endif %}>
+                {{ auth }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_WAREHOUSE %}
+    <div class="col-auto">
+        <select name="sender_to_shop" class="form-select" id="belonging-select">
+            <option value="">宛先所属 -</option>
+            {% for shop in shops %}
+            <option value="{{ shop.id }}" {% if request.GET.sender_to_shop == shop.id|stringformat:"s" %}selected{% endif %}>
+                {{ shop }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_SHOP %}
+    <div class="col-auto">
+        <select name="sender_to_warehouse" class="form-select" id="belonging-select">
+            <option value="">宛先所属 -</option>
+            {% for warehouse in warehouses %}
+            <option value="{{ warehouse.id }}" {% if request.GET.sender_to_warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>
+                {{ warehouse }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    <div class="col-auto">
+        <select name="sender_status" class="form-select">
+            <option value="">ステータス -</option>
+            {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if request.GET.sender_status == val|stringformat:"s" %}selected{% endif %}>
+                {{ label }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary">絞り込み</button>
+        <a href="{% url 'inquiry_list' %}" class="btn btn-link">リセット</a>
+    </div>
+</form>
+
+<!-- 送信済み一覧 -->
+<h4>送信済み一覧</h4>
+<table class="table table-hover">
+    <thead class="table-light">
+        <tr>
+            <th>問い合わせ内容</th>
+            <th>カテゴリ</th>
+            <th>宛先権限</th>
+            <th>宛先所属</th>
+            <th>送信日時</th>
+            <th>ステータス</th>
+            <th>詳細</th>
+            <th>削除</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for inquiry in sent_inquiries %}
+        <tr class="align-middle">
+            <td>{{ inquiry.inquiry_details|truncatechars:30 }}</td>
+
+            <td>{{ inquiry.inquiry_category }}</td>
+
+            <td>{{ inquiry.to_authority }}</td>
+
+            <td>
+                {% if inquiry.to_authority_id == AUTHORITY_SHOP %}
+                    {{ inquiry.to_relation.shop.shop_name }}
+                {% elif inquiry.to_authority_id == AUTHORITY_WAREHOUSE %}
+                    {{ inquiry.to_relation.warehouse.warehouse_name }}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+
+            <td>{{ inquiry.created_at|date:"Y/m/d H:i" }}</td>
+
+            <td>{{ inquiry.get_status_display }}</td>
+
+            <td>
+                <a href="{% url 'inquiry_detail' pk=inquiry.pk %}" class="btn btn-sm btn-outline-primary">詳細</a>
+            </td>
+
+            <td>
+                <form method="post" action="{% url 'inquiry_delete' pk=inquiry.pk %}"
+                      onsubmit="return confirm('本当に削除しますか？');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
+                </form>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted">送信した問い合わせはありません</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% endblock %}

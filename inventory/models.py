@@ -1,71 +1,22 @@
 from django.db import models
-from django.conf import settings
-from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from .constants.prefectures import PREFECTURE_CHOICES
 
 # Create your models here.
+class ActiveManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(delete_flg=False)
 
-class Authority(models.Model):
-    authority_name = models.CharField(max_length=50)
+class BaseModel(models.Model):
     delete_flg = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return self.authority_name
+    objects = models.Manager()
+    active_objects = ActiveManager()
 
-class User(AbstractUser):
+    class Meta:
+        abstract = True
 
-    class Gender(models.IntegerChoices):
-        MEN = 1, '男'
-        WOMEN = 2, '女'
-        OTHERS = 3, 'その他'
-
-    username = models.CharField(
-        max_length=255,
-        unique=True
-    )
-    user_gender = models.IntegerField(
-        choices=Gender.choices,
-    )
-    authority = models.ForeignKey(
-        'Authority',
-        on_delete=models.PROTECT
-    )
-    warehouse = models.ForeignKey(
-        'Warehouse',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True
-    )
-    shop = models.ForeignKey(
-        'Shop',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True
-    )
-    delete_flg = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def clean(self):
-        authority_id = self.authority.id
-        if authority_id == 2:
-            if not self.shop:
-                raise ValidationError({
-                    'shop': '店舗を選択してください。'
-                })
-        elif authority_id == 3:
-            if not self.warehouse:
-                raise ValidationError({
-                    'warehouse': '倉庫を選択してください。'
-                })
-
-    def __str__(self):
-        return self.username
-
-class Warehouse(models.Model):
+class Warehouse(BaseModel):
     warehouse_name = models.CharField(max_length=255)
     prefecture = models.CharField(
         max_length=10,
@@ -82,39 +33,150 @@ class Warehouse(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['warehouse_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_warehouse_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_warehouses = Warehouse.active_objects.filter(
+            warehouse_name=self.warehouse_name
+        )
+        if self.pk:
+            duplicate_warehouses = duplicate_warehouses.exclude(pk=self.pk)
+
+        if duplicate_warehouses.exists():
+            raise ValidationError({
+                'warehouse_name': '同じ倉庫名は登録できません。'
+            })
+
+    def get_full_address(self):
+        parts = [
+            self.prefecture,
+            self.city,
+            self.address1,
+        ]
+        if self.address2:
+            parts.append(self.address2)
+        return ''.join(parts)
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+        self.warehousestock_set.filter(delete_flg=False).update(delete_flg=True)
+
+    def has_related_records(self):
+        return (
+            self.user_set.filter(delete_flg=False).exists()
+            or self.warehousestock_set.filter(delete_flg=False, stock__gt=0).exists()
+            or self.relation_set.filter(delete_flg=False).exists()
+        )
+
     def __str__(self):
         return self.warehouse_name
 
-class Shop(models.Model):
+class Shop(BaseModel):
     shop_name = models.CharField(max_length=255)
-    prefecture = models.CharField(
-        max_length=10,
-        choices=PREFECTURE_CHOICES
-    )
+    prefecture = models.CharField(max_length=10,choices=PREFECTURE_CHOICES)
     city = models.CharField(max_length=100)
     address1 = models.CharField(max_length=255)
-    address2 = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True
-    )
+    address2 = models.CharField(max_length=255,blank=True,null=True)
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['shop_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_shop_name'
+            )
+        ]
+
+    def clean(self):
+        duplicate = Shop.active_objects.filter(
+            shop_name=self.shop_name
+        )
+        if self.pk:
+            duplicate = duplicate.exclude(pk=self.pk)
+        if duplicate.exists():
+            raise ValidationError(
+                {'shop_name': '既に店舗名は存在します'}
+            )
+
+    def get_full_address(self):
+        parts = [
+            self.prefecture,
+            self.city,
+            self.address1,
+        ]
+        if self.address2:
+            parts.append(self.address2)
+        return ''.join(parts)
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+        self.shopstock_set.filter(delete_flg=False).update(delete_flg=True)
+
+    def has_related_records(self):
+        return (
+            self.user_set.filter(delete_flg=False).exists()
+            or self.shopstock_set.filter(delete_flg=False, stock__gt=0).exists()
+            or self.relation_set.filter(delete_flg=False).exists()
+            or self.monthlyordersummary_set.filter(delete_flg=False).exists()
+        )
+
     def __str__(self):
         return self.shop_name
 
-class GoodsCategory(models.Model):
+class GoodsCategory(BaseModel):
     category_name = models.CharField(max_length=255)
     delete_flg = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['category_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_category_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_categories = GoodsCategory.active_objects.filter(
+            category_name=self.category_name
+        )
+        if self.pk:
+            duplicate_categories = duplicate_categories.exclude(pk=self.pk)
+
+        if duplicate_categories.exists():
+            raise ValidationError({
+                'category_name': '同じカテゴリ名は登録できません。'
+            })
+
+    def has_related_records(self):
+        return self.goods_set.filter(delete_flg=False).exists()
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
     def __str__(self):
         return self.category_name
 
-class Goods(models.Model):
+class Goods(BaseModel):
     goods_name = models.CharField(max_length=255)
     goods_category = models.ForeignKey(
         'GoodsCategory',
@@ -124,10 +186,42 @@ class Goods(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['goods_name'],
+                condition=models.Q(delete_flg=False),
+                name='unique_active_goods_name'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+
+        duplicate_goods = Goods.active_objects.filter(goods_name=self.goods_name)
+        if self.pk:
+            duplicate_goods = duplicate_goods.exclude(pk=self.pk)
+
+        if duplicate_goods.exists():
+            raise ValidationError({
+                'goods_name': '同じ商品名は登録できません。'
+            })
+
+    def has_related_records(self):
+        return (
+            self.shopstock_set.filter(delete_flg=False).exists()
+            or self.warehousestock_set.filter(delete_flg=False).exists()
+            or self.ordergoods_set.filter(delete_flg=False).exists()
+        )
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
     def __str__(self):
         return self.goods_name
 
-class ShopStock(models.Model):
+class ShopStock(BaseModel):
     shop = models.ForeignKey(
         'Shop',
         on_delete=models.PROTECT
@@ -141,10 +235,18 @@ class ShopStock(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['shop', 'goods'],
+                name='unique_shop_goods'
+            )
+        ]
+
     def __str__(self):
         return f'{self.shop} - {self.goods} : {self.stock}'
 
-class WarehouseStock(models.Model):
+class WarehouseStock(BaseModel):
     warehouse = models.ForeignKey(
         'Warehouse',
         on_delete=models.PROTECT
@@ -158,10 +260,18 @@ class WarehouseStock(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['warehouse', 'goods'],
+                name='unique_warehouse_goods'
+            )
+        ]
+
     def __str__(self):
         return f'{self.warehouse} - {self.goods} : {self.stock}'
 
-class Relation(models.Model):
+class Relation(BaseModel):
     warehouse = models.ForeignKey(
         'Warehouse',
         on_delete=models.PROTECT
@@ -178,14 +288,25 @@ class Relation(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['warehouse', 'shop'],
-                name='unique_warehouse_shop'
+                condition=models.Q(delete_flg=False),
+                name='unique_active_warehouse_shop'
             )
         ]
+
+    def soft_delete(self):
+        self.delete_flg = True
+        self.save(update_fields=['delete_flg', 'updated_at'])
+
+    def has_related_records(self):
+        return (
+            self.order_set.filter(delete_flg=False).exists()
+            or self.inquiry_set.filter(delete_flg=False).exists()
+        )
 
     def __str__(self):
         return f'{self.warehouse} - {self.shop}'
 
-class Order(models.Model):
+class Order(BaseModel):
 
     class Status(models.IntegerChoices):
         ORDERED   = 0, '発注済'
@@ -214,7 +335,7 @@ class Order(models.Model):
     def __str__(self):
         return f'受注ID：{self.id}'
     
-class OrderGoods(models.Model):
+class OrderGoods(BaseModel):
     order = models.ForeignKey(
         'Order',
         on_delete=models.PROTECT
@@ -238,115 +359,3 @@ class OrderGoods(models.Model):
 
     def __str__(self):
         return f'{self.order} - {self.goods} : {self.quantity}'
-
-class Inquiry(models.Model):
-
-    class Status(models.IntegerChoices):
-        PENDING = 0, '未対応'
-        IN_PROGRESS = 1, '対応中'
-        COMPLETED = 2, '対応済み'
-
-    to_authority = models.ForeignKey(
-        'Authority',
-        on_delete=models.PROTECT,
-        related_name='received_inquiries'
-    )
-    from_user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
-    from_name = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True
-    )
-    from_authority = models.ForeignKey(
-        'Authority',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True
-    )
-    from_belong_shop = models.ForeignKey(
-        'Shop',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True
-    )
-    from_belong_warehouse = models.ForeignKey(
-        'Warehouse',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True
-    )
-    to_relation = models.ForeignKey(
-        'Relation',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True
-    )
-    inquiry_title =models.CharField(
-        max_length=100,
-        null=True,
-        blank=True
-    )
-    inquiry_details =models.CharField(
-        max_length=255
-    )
-    status = models.IntegerField(
-        choices=Status.choices,
-        default=Status.PENDING
-    )
-    delete_flg = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def clean(self):
-        # ログインユーザーの場合
-        if self.from_user:
-            if self.from_user.authority_id == self.to_authority_id:
-                raise ValidationError({
-                    'to_authority': '自分と異なる権限の宛先を選択してください。'
-                })
-        else:
-            if self.to_authority.id != 1:
-                raise ValidationError({
-                    'to_authority': '未ログインユーザーは管理者宛のみ送信可能です。'
-                })
-
-    def __str__(self):
-        return f'問い合わせID:{self.id}'
-
-class MonthlyOrderSummary(models.Model):
-    count_date = models.DateField()
-    shop = models.ForeignKey(
-        'Shop',
-        on_delete=models.PROTECT
-    )
-    goods = models.ForeignKey(
-        'Goods',
-        on_delete=models.PROTECT
-    )
-    total_quantity = models.PositiveIntegerField(
-        default=0
-    )
-    delete_flg = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['count_date', 'shop', 'goods'],
-                name='unique_summary'
-            )
-        ]
-
-    def __str__(self):
-        return (
-            f'集計日:{self.count_date}'
-            f'店舗:{self.shop.shop_name}'
-            f'商品:{self.goods.goods_name}'
-            f'発注数:{self.total_quantity}'
-        )
