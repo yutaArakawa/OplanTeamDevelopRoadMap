@@ -4,8 +4,6 @@ services:
     command: bash /app/entrypoint.sh
     volumes:
       - .:/app
-    ports:
-      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
