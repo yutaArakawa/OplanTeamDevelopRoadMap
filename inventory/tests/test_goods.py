@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.messages import get_messages
 from django.urls import reverse
-from inventory.models import GoodsCategory, Goods, WarehouseStock, ShopStock
+from inventory.models import GoodsCategory, Goods, WarehouseStock, ShopStock, Order, OrderGoods
 
 pytestmark = pytest.mark.django_db
 
@@ -309,3 +309,47 @@ class TestGoodsDelete:
         client.force_login(admin_user)
         response = client.post(reverse('goods_delete', kwargs={'pk': goods.pk}))
         assert response.status_code == 404
+
+    def test_can_delete_goods_with_zero_warehouse_stock(self, client, admin_user, goods, warehouse):
+        """warehouse_stock が stock=0 の場合、削除可能（商品作成直後）"""
+        # 商品に紐づく stock=0 の warehouse_stock を作成
+        WarehouseStock.objects.create(goods=goods, warehouse=warehouse, stock=0)
+
+        # 削除可能であることを確認
+        client.force_login(admin_user)
+        response = client.post(reverse('goods_delete', kwargs={'pk': goods.pk}))
+        goods.refresh_from_db()
+        assert goods.delete_flg is True
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('削除しました' in str(m) for m in msgs)
+
+    def test_can_delete_goods_with_zero_shop_stock(self, client, admin_user, goods, shop):
+        """shop_stock が stock=0 の場合、削除可能（商品作成直後）"""
+        # 商品に紐づく stock=0 の shop_stock を作成
+        ShopStock.objects.create(goods=goods, shop=shop, stock=0)
+
+        # 削除可能であることを確認
+        client.force_login(admin_user)
+        response = client.post(reverse('goods_delete', kwargs={'pk': goods.pk}))
+        goods.refresh_from_db()
+        assert goods.delete_flg is True
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('削除しました' in str(m) for m in msgs)
+
+    def test_cannot_delete_goods_with_ordergoods(self, client, admin_user, goods, relation):
+        """OrderGoods が紐づく商品は削除できない"""
+        # 注文を作成
+        order = Order.objects.create(relation=relation)
+        # OrderGoods を作成
+        OrderGoods.objects.create(order=order, goods=goods, quantity=1)
+
+        # goods に紐づく OrderGoods が存在することを確認
+        assert OrderGoods.objects.filter(goods=goods, delete_flg=False).exists()
+
+        # 削除できないことを確認
+        client.force_login(admin_user)
+        response = client.post(reverse('goods_delete', kwargs={'pk': goods.pk}))
+        goods.refresh_from_db()
+        assert goods.delete_flg is False
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('削除できません' in str(m) for m in msgs)
