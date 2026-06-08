@@ -1,0 +1,128 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: cimg/python:3.12
+        environment:
+          DJANGO_DB_HOST: 127.0.0.1
+          DJANGO_SETTINGS_MODULE: config.settings
+          CI: true
+      - image: cimg/mysql:8.0
+        environment:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: stockdb
+          MYSQL_USER: stockuser
+          MYSQL_PASSWORD: password
+
+    parallelism: 4
+    resource_class: small  # コスト効率
+
+    steps:
+      - checkout
+
+      # =============================================
+      # キャッシュ復元（pip パッケージ）
+      # =============================================
+      - restore_cache:
+          keys:
+            - deps-{{ checksum "requirements.txt" }}
+            - deps-
+
+      # =============================================
+      # 依存関係のインストール
+      # =============================================
+      - run:
+          name: Install dependencies
+          command: |
+            python -m venv venv
+            . venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+            pip list | grep pytest
+
+      # =============================================
+      # キャッシュ保存（pip パッケージ + virtualenv）
+      # =============================================
+      - save_cache:
+          key: deps-{{ checksum "requirements.txt" }}
+          paths:
+            - ~/.cache/pip
+            - venv
+
+      # =============================================
+      # テスト実行時間データを復元
+      # =============================================
+      - restore_cache:
+          keys:
+            - test-timings-{{ .Branch }}
+            - test-timings-main
+            - test-timings-
+
+      # =============================================
+      # MySQL 起動待機
+      # =============================================
+      - run:
+          name: Wait for MySQL
+          command: |
+            . venv/bin/activate
+            for i in {1..30}; do
+              mysql -h 127.0.0.1 -u stockuser -ppassword -e "SELECT 1" && break
+              echo "Waiting for MySQL..."
+              sleep 1
+            done
+
+      # =============================================
+      # マイグレーション実行
+      # =============================================
+      - run:
+          name: Apply migrations
+          command: |
+            . venv/bin/activate
+            python manage.py migrate
+
+      # =============================================
+      # テスト実行（並列化 + カバレッジ測定）
+      # =============================================
+      - run:
+          name: Run tests (parallelized)
+          command: |
+            mkdir -p test-results
+            ./venv/bin/pytest \
+              --splits=4 \
+              --group=$((CIRCLE_NODE_INDEX + 1)) \
+              --splitting-algorithm=least_duration \
+              --durations-path=.circleci/.test_durations \
+              --store-durations \
+              --cov=. \
+              --cov-report=xml \
+              --junitxml=test-results/junit.xml
+          timeout: 1800  # 30分
+
+      # =============================================
+      # テスト実行時間データを保存
+      # =============================================
+      - save_cache:
+          key: test-timings-{{ .Branch }}-{{ epoch }}
+          paths:
+            - .circleci/.test_durations
+
+      # =============================================
+      # テスト結果をアップロード
+      # =============================================
+      - store_test_results:
+          path: test-results
+
+      # =============================================
+      # カバレッジレポートをアップロード
+      # =============================================
+      - store_artifacts:
+          path: coverage.xml
+          destination: coverage
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - test
+

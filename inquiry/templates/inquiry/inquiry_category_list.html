@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}
+問い合わせカテゴリ管理
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">問い合わせカテゴリ管理</h1>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+        <a href="{% url 'inquiry_category_create' %}" class="btn btn-primary">
+            問い合わせカテゴリ作成
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>カテゴリ名</th>
+                    <th class="text-end">編集</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in category_list %}
+                <tr>
+                    <td>{{ category.category_name }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'inquiry_category_edit' category.id %}" class="btn btn-sm btn-outline-primary">
+                            編集
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" class="text-center text-muted py-4">
+                        登録済みの問い合わせカテゴリはありません
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

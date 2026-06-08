@@ -1,0 +1,32 @@
+<nav class="navbar navbar-default border {% if request.user.authority_id == 1 %}header-admin{% elif request.user.authority_id == 2 %}header-shop{% elif request.user.authority_id == 3 %}header-warehouse{% else %}header-default{% endif %}">
+
+    <div class="container-fluid d-flex">
+
+        <div class="d-flex align-items-center">
+            {% if user.is_authenticated %}
+            {% include 'components/sidebar.html' %}
+            {% endif %}
+            <a class="navbar-brand ms-3" href="{% url 'home' %}">Python Stock App</a>
+        </div>
+
+        {% if user.is_authenticated %}
+        <div class="d-flex align-items-center">
+            <p class="navbar-text mb-0 me-3">
+                {{ request.user.authority }}:
+                {% if request.user.authority_id == 2 %}
+                {{ request.user.shop }}
+                {% elif request.user.authority_id == 3 %}
+                {{ request.user.warehouse }}
+                {% endif %}
+                {{ request.user.username }} さんでログイン中
+            </p>
+
+            <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">ログアウト</button>
+            </form>
+        </div>
+        {% endif %}
+
+    </div>
+</nav>

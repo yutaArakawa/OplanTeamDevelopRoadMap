@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}
+店舗在庫管理
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label for="category" class="form-label">カテゴリー</label>
+                <select name="category" id="category" class="form-select">
+                    <option value=""> - </option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if category.id|stringformat:"s" == request.GET.category %}selected{% endif %}>
+                        {{ category }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">絞り込む</button>
+                <a href="{% url 'shop_stock_list' %}" class="btn btn-outline-secondary ms-1">リセット</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>商品名</th>
+                    <th>カテゴリー</th>
+                    <th>在庫数</th>
+                    <th class="text-end">編集</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for shop_stock in shop_stock_list %}
+                <tr>
+                    <td>{{ shop_stock.goods_name }}</td>
+                    <td>{{ shop_stock.goods_category }}</td>
+                    <td>{{ shop_stock.stock }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'shop_stock_edit' shop_stock.id %}" class="btn btn-sm btn-outline-primary">
+                            編集
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        商品はありません
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

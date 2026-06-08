@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}問い合わせ送信{% endblock %}
+
+{% block content %}
+<div class="container mt-4 py-4 w-50 bg-light">
+    <h2 class="mb-4">問い合わせ送信</h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <div class="alert alert-danger">
+            入力内容に誤りがあります
+        </div>
+        {% endif %}
+
+        <!-- 宛先権限 -->
+        <div class="mb-3">
+            <label class="form-label">宛先権限 <span class="text-danger">*</span></label>
+            {{ form.to_authority }}
+            {% if form.to_authority.errors %}
+            <div class="text-danger">{{ form.to_authority.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- 所属（宛先が店舗・倉庫スタッフのとき選択） -->
+        <div class="mb-3">
+            <label class="form-label">所属（宛先が店舗スタッフ・倉庫スタッフの場合は必須）</label>
+            {{ form.to_relation }}
+            {% if form.to_relation.errors %}
+            <div class="text-danger">{{ form.to_relation.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- 件名 -->
+        <div class="mb-3">
+            <label class="form-label">件名</label>
+            {{ form.inquiry_title }}
+            {% if form.inquiry_title.errors %}
+            <div class="text-danger">{{ form.inquiry_title.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- カテゴリ -->
+        <div class="mb-3">
+            <label class="form-label">カテゴリ</label>
+            {{ form.inquiry_category }}
+            {% if form.inquiry_category.errors %}
+            <div class="text-danger">{{ form.inquiry_category.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- 問い合わせ内容 -->
+        <div class="mb-3">
+            <label class="form-label">問い合わせ内容 <span class="text-danger">*</span></label>
+            {{ form.inquiry_details }}
+            {% if form.inquiry_details.errors %}
+            <div class="text-danger">{{ form.inquiry_details.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">送信</button>
+            <a href="{% url 'inquiry_list' %}" class="btn btn-secondary">戻る</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}問い合わせ（ゲスト）{% endblock %}
+
+{% block content %}
+<div class="container mt-4 py-4 w-50 bg-light">
+    <h2 class="mb-1">問い合わせ</h2>
+    <p class="text-muted mb-4">宛先は自動的に管理者となります。</p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% if form.errors %}
+        <div class="alert alert-danger">
+            入力内容に誤りがあります
+        </div>
+        {% endif %}
+
+        <!-- 権限 -->
+        <div class="mb-3">
+            <label class="form-label">権限</label>
+            {{ form.from_authority }}
+            {% if form.from_authority.errors %}
+            <div class="text-danger">{{ form.from_authority.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- 所属店舗 -->
+        <div class="mb-3">
+            <label class="form-label">所属店舗</label>
+            {{ form.from_belong_shop }}
+            {% if form.from_belong_shop.errors %}
+            <div class="text-danger">{{ form.from_belong_shop.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- 所属倉庫 -->
+        <div class="mb-3">
+            <label class="form-label">所属倉庫</label>
+            {{ form.from_belong_warehouse }}
+            {% if form.from_belong_warehouse.errors %}
+            <div class="text-danger">{{ form.from_belong_warehouse.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- 名前 -->
+        <div class="mb-3">
+            <label class="form-label">名前</label>
+            {{ form.from_name }}
+            {% if form.from_name.errors %}
+            <div class="text-danger">{{ form.from_name.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- 件名 -->
+        <div class="mb-3">
+            <label class="form-label">件名</label>
+            {{ form.inquiry_title }}
+            {% if form.inquiry_title.errors %}
+            <div class="text-danger">{{ form.inquiry_title.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- カテゴリ -->
+        <div class="mb-3">
+            <label class="form-label">カテゴリ</label>
+            {{ form.inquiry_category }}
+            {% if form.inquiry_category.errors %}
+            <div class="text-danger">{{ form.inquiry_category.errors }}</div>
+            {% endif %}
+        </div>
+
+        <!-- 問い合わせ内容 -->
+        <div class="mb-3">
+            <label class="form-label">問い合わせ内容 <span class="text-danger">*</span></label>
+            {{ form.inquiry_details }}
+            {% if form.inquiry_details.errors %}
+            <div class="text-danger">{{ form.inquiry_details.errors }}</div>
+            {% endif %}
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">送信</button>
+            <a href="{% url 'login' %}" class="btn btn-secondary">ログインに戻る</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
