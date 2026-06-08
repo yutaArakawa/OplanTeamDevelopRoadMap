@@ -26,7 +26,13 @@ SECRET_KEY = 'django-insecure-=5aq^#ol6+*qd0t$k=sgf5lk1aq$o)(1%kq2^7y0(wy9%*71(r
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'web',  # Docker コンテナ名でアクセスする場合
+    'example.com',  # 本番環境のドメイン名
+
+]
 
 
 # Application definition
@@ -38,6 +44,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'rest_framework',
+    'corsheaders',
+
     'inventory',
     'accounts',
     'dashboard',
@@ -47,6 +57,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -146,3 +157,25 @@ STATIC_URL = '/static/'
 LOGIN_REDIRECT_URL = '/'
 
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# CORS 設定（React からの リクエスト許可）
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",      # React 開発サーバー
+    "http://localhost:3000",       # 代替（npm run dev で 3000 を使う場合）
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
+# クッキーや認証情報を含むリクエストを許可する設定
+CORS_ALLOW_CREDENTIALS = True
+
+REST_FRAMEWORK = {
+    # API全体でセッション認証を使用する設定
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    # API全体でページネーションを使用する設定
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    # 1ページあたりのアイテム数を指定
+    'PAGE_SIZE': 50,
+}

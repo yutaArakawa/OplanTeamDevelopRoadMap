@@ -7,3 +7,12 @@ pytest-split
 pytest-cov
 coverage
 reportlab
+
+# REST Framework
+djangorestframework==3.14.0
+
+# CORS 対応（React からのリクエスト許可）
+django-cors-headers==4.3.1
+
+# フィルタリング機能
+django-filter==23.5
