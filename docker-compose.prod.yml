@@ -1,0 +1,43 @@
+services:
+  web:
+    build: .
+    command: bash /app/entrypoint.sh
+    volumes:
+      - .:/app
+    ports:
+      - "9149:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: stockdb
+      MYSQL_USER: stockuser
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: rootpassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+  
+  cron:
+    build: .
+    command: cron -f
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    environment:
+      - TZ=Asia/Tokyo
+
+volumes:
+  mysql_data:

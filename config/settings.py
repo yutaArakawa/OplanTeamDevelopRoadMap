@@ -30,10 +30,10 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     'web',  # Docker コンテナ名でアクセスする場合
+    '160.251.205.21', # デプロイ環境の IP アドレス
     'example.com',  # 本番環境のドメイン名
 
 ]
-
 
 # Application definition
 
