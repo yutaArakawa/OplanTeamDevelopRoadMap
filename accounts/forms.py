@@ -40,16 +40,19 @@ class UserCreateForm(UserCreationForm):
             })
 
         self.fields['authority'].widget.attrs.update({
-            'class': 'form-select'
+            'class': 'form-select',
+            'id': 'authority-select'
         })
         self.fields['user_gender'].widget.attrs.update({
             'class': 'form-select'
         })
         self.fields['shop'].widget.attrs.update({
-            'class': 'form-select'
+            'class': 'form-select',
+            'id': 'belonging-select-shop'
         })
         self.fields['warehouse'].widget.attrs.update({
-            'class': 'form-select'
+            'class': 'form-select',
+            'id': 'belonging-select-warehouse'
         })
         self.fields['shop'].queryset = Shop.active_objects.order_by('shop_name')
         self.fields['warehouse'].queryset = Warehouse.active_objects.order_by('warehouse_name')
@@ -103,16 +106,19 @@ class UserUpdateForm(UserChangeForm):
             })
 
         self.fields['authority'].widget.attrs.update({
-            'class': 'form-select'
+            'class': 'form-select',
+            'id': 'authority-select'
         })
         self.fields['user_gender'].widget.attrs.update({
             'class': 'form-select'
         })
         self.fields['shop'].widget.attrs.update({
-            'class': 'form-select'
+            'class': 'form-select',
+            'id': 'belonging-select-shop'
         })
         self.fields['warehouse'].widget.attrs.update({
-            'class': 'form-select'
+            'class': 'form-select',
+            'id': 'belonging-select-warehouse'
         })
         self.fields['shop'].queryset = Shop.active_objects.order_by('shop_name')
         self.fields['warehouse'].queryset = Warehouse.active_objects.order_by('warehouse_name')
