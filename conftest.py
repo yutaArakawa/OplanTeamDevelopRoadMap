@@ -173,3 +173,16 @@ def inquiry_to_warehouse(db, authority_warehouse, shop_user, relation, inquiry_c
         inquiry_category=inquiry_category,
         inquiry_details='倉庫スタッフ宛のテスト問い合わせ',
     )
+
+
+@pytest.fixture
+def guest_inquiry(db, authority_admin, inquiry_category):
+    """ゲスト（未ログインユーザー）→ 管理者 宛の問い合わせ"""
+    return Inquiry.objects.create(
+        to_authority=authority_admin,
+        from_user=None,
+        from_authority=None,
+        from_name='ゲストユーザー',
+        inquiry_category=inquiry_category,
+        inquiry_details='ゲストからのテスト問い合わせ',
+    )

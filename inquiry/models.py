@@ -100,6 +100,12 @@ class Inquiry(BaseModel):
 
     def __str__(self):
         return f'問い合わせID:{self.id}'
+    
+    def get_from_authority_display(self):
+        # 送信元の権限を取得（ゲスト対応）
+        if self.from_user is None and self.from_authority is None:
+            return 'ゲスト'
+        return str(self.from_authority) if self.from_authority else '-'
 
 class InquiryCategory(BaseModel):
     category_name = models.CharField(max_length=255)
