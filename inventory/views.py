@@ -980,7 +980,8 @@ class WarehouseOrderCSVExportView(WarehouseStaffRequiredMixin, View):
         rows   = _build_rows(orders)
 
         response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-        response['Content-Disposition'] = 'attachment; filename="受注履歴.csv"'
+        filename = '受注履歴.csv'
+        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
 
         writer = csv.writer(response)
         writer.writerow(['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
@@ -1071,7 +1072,8 @@ class WarehouseOrderPDFExportView(WarehouseStaffRequiredMixin, View):
         buffer.close()
 
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="受注履歴.pdf"'
+        filename = '受注履歴.csv'
+        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
         return response
     
     
