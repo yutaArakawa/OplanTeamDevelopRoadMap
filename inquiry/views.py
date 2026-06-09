@@ -86,10 +86,16 @@ class InquiryListView(LoginRequiredMixin, TemplateView):
 
         sort_authority = self.request.GET.get('authority')
         if sort_authority:
-            try:
-                received = received.filter(from_authority_id=int(sort_authority))
-            except ValueError:
-                pass
+            if sort_authority == 'guest':
+                received = received.filter(
+                    from_user__isnull=True,
+                    from_authority__isnull=True,
+                )
+            else:
+                try:
+                    received = received.filter(from_authority_id=int(sort_authority))
+                except ValueError:
+                    pass
 
         sort_shop = self.request.GET.get('shop')
         if sort_shop:
