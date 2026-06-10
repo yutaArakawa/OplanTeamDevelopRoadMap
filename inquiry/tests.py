@@ -85,6 +85,31 @@ class TestInquiryList:
         assert response.status_code == 200
         assert inquiry_to_admin in response.context['received_inquiries']
 
+    def test_authority_filter_guest_excludes_non_guest(self, client, admin_user, inquiry_to_admin, guest_inquiry):
+        """権限「ゲスト」で絞り込むとゲスト以外の問い合わせは表示されない"""
+        client.force_login(admin_user)
+        response = client.get(reverse('inquiry_list') + '?authority=guest')
+        assert response.status_code == 200
+        received_inquiries = response.context['received_inquiries']
+
+        # ゲストではない問い合わせ（inquiry_to_admin）は表示されない
+        assert inquiry_to_admin not in received_inquiries
+
+    def test_authority_filter_guest_includes_guest(self, client, admin_user, guest_inquiry):
+        """権限「ゲスト」で絞り込むとゲストからの問い合わせのみ表示される"""
+        client.force_login(admin_user)
+        response = client.get(reverse('inquiry_list') + '?authority=guest')
+        assert response.status_code == 200
+        received_inquiries = response.context['received_inquiries']
+
+        # ゲストからの問い合わせが表示される
+        assert guest_inquiry in received_inquiries
+
+        # すべての問い合わせがゲスト（from_user = NULL かつ from_authority = NULL）である
+        for inquiry in received_inquiries:
+            assert inquiry.from_user is None
+            assert inquiry.from_authority is None
+
 
 # ---------------------------------------------------------------------------
 # 問い合わせ送信（ログイン済み・管理者以外）
