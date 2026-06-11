@@ -4,13 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Environment
 
-This project uses Docker Compose with MySQL. Start the full stack with:
+This project uses Docker Compose with MySQL. There are two Docker Compose files:
 
+- `docker-compose.dev.yml` — Development: Django `runserver` directly on port 8000
+- `docker-compose.prod.yml` — Production: nginx (port 9149) → Gunicorn → Django
+
+**Development (local):**
 ```bash
-docker-compose up
+docker-compose -f docker-compose.dev.yml up
 ```
-
 The web server runs on `http://localhost:8000`. The MySQL database is exposed on port 3307 (mapped from container port 3306).
+
+**Production:**
+```bash
+docker-compose -f docker-compose.prod.yml up -d --build
+docker-compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
+```
+The web server runs on `http://localhost:9149` via nginx. `collectstatic` must be run after build whenever static files (CSS/JS) change.
 
 For local development without Docker (CI mode uses SQLite):
 
@@ -23,11 +33,11 @@ CI=true python manage.py runserver
 ## Common Commands
 
 ```bash
-# Run all tests (inside Docker container)
-docker exec -e CI=true python_stock_app-web-1 pytest
-
-# Run all tests (without Docker, uses SQLite)
+# Run all tests (faster — uses SQLite without Docker)
 CI=true pytest
+
+# Run all tests (inside Docker dev container)
+docker exec -e CI=true python_stock_app-web-1 pytest
 
 # Run tests for a single app
 CI=true pytest accounts/
@@ -38,6 +48,9 @@ CI=true pytest accounts/tests.py::TestLogin::test_login_success
 
 # Apply migrations
 python manage.py migrate
+
+# Collect static files (required for production)
+python manage.py collectstatic --noinput
 
 # Create a superuser (requires Authority id=1 to exist in DB)
 python manage.py createsuperuser
