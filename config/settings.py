@@ -12,21 +12,25 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env()
+env.read_env(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-=5aq^#ol6+*qd0t$k=sgf5lk1aq$o)(1%kq2^7y0(wy9%*71(r'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=False)
 
-ALLOWED_HOSTS = ['160.251.205.21', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
 
 # Application definition
@@ -91,11 +95,11 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'stockdb',
-            'USER': 'stockuser',
-            'PASSWORD': 'password',
-            'HOST': os.environ.get('DJANGO_DB_HOST', 'db'),
-            'PORT': '3306',
+            'NAME': env('DATABASES_NAME'),
+            'USER': env('DATABASES_USER'),
+            'PASSWORD': env('DATABASES_PASSWORD'),
+            'HOST': env('DATABASES_HOST', default='db'),
+            'PORT': env('DATABASES_PORT', default='3306'),
         }
     }
 

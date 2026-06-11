@@ -13,11 +13,13 @@ services:
   db:
     image: mysql:8.0
     restart: always
+    env_file:
+      - .env
     environment:
-      MYSQL_DATABASE: stockdb
-      MYSQL_USER: stockuser
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ${DATABASES_NAME}
+      MYSQL_USER: ${DATABASES_USER}
+      MYSQL_PASSWORD: ${DATABASES_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
       - "3307:3306"
     volumes:

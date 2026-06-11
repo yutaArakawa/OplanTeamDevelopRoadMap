@@ -7,3 +7,4 @@ pytest-split
 pytest-cov
 coverage
 reportlab
+django-environ==0.9.0
