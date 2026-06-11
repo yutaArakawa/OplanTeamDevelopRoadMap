@@ -114,12 +114,12 @@
                 戻る
             </a>
 
-            {% if user_authority_id == AUTHORITY_ADMIN %}
-            {% include 'components/delete_button.html' with delete_url=user.get_delete_url %}
-            {% endif %}
 
         </div>
     </form>
+    {% if user_authority_id == AUTHORITY_ADMIN %}
+    {% include 'components/delete_button.html' with delete_url=user.get_delete_url %}
+    {% endif %}
 
 </div>
 {% endblock %}

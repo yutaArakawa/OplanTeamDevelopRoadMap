@@ -40,3 +40,14 @@ if (authoritySelect) {
         authoritySelect.dispatchEvent(event);
     })
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteModal = document.getElementById('deleteModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const btn = event.relatedTarget;
+            const url = btn.getAttribute('data-delete-url');
+            document.getElementById('deleteForm').action = url;
+        })
+    }
+})
