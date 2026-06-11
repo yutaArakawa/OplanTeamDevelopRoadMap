@@ -14,7 +14,6 @@ from pathlib import Path
 import os
 import sys
 import pymysql
-from distutils.util import strtobool
 import environ
 
 env = environ.Env()
