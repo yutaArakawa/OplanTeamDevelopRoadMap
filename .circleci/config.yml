@@ -8,6 +8,7 @@ jobs:
           DJANGO_DB_HOST: 127.0.0.1
           DJANGO_SETTINGS_MODULE: config.settings
           CI: true
+          SECRET_KEY: dummy-secret-key-for-ci-only
       - image: cimg/mysql:8.0
         environment:
           MYSQL_ROOT_PASSWORD: password
