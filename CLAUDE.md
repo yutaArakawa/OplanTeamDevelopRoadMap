@@ -53,7 +53,7 @@ This is a Django inventory/stock management system for a multi-location retail b
 - `accounts` — Custom user model extending `AbstractUser`, with `Authority` (role) and FK links to `Warehouse`/`Shop`
 - `dashboard` — Home page view; `MonthlyOrderSummary` aggregation model
 - `inquiry` — Inquiry/support ticket model between user roles
-- `common` — Shared utilities: `BaseModel`, `ActiveManager`, role-check mixins, constants, context processor
+- `common` — Shared utilities: `BaseModel`, `ActiveManager`, role-check mixins, constants, context processor. Also provides autocomplete API endpoints (`/common/api/shops/autocomplete/`, `/common/api/warehouses/autocomplete/`) via Django REST Framework (`djangorestframework`). Serializers are in `common/seializers.py`; views in `common/views.py`; URLs registered under `common/` prefix in `config/urls.py`.
 
 **Dashboard (home page):**
 
@@ -186,6 +186,7 @@ Test files per app:
 - `inventory/tests/test_order.py` — order goods list, order create, CSV download/import, order history, CSV/PDF export (shop side)
 - `inventory/tests/test_relation.py` — relation list/create/delete, shop connected-warehouse list
 - `inquiry/tests.py` — inquiry list (received/sent, filters including guest authority filter), inquiry create (auth checks, validation, category selection), guest inquiry, detail/status update, delete, form label_from_instance, relation query-param pre-population, **InquiryCategory CRUD** (list/create/update/delete admin-only views, duplicate name validation, related records check, soft delete, category filter in inquiry list), **guest inquiry filtering tests** (authority=guest shows only guest inquiries), total 66 tests
+- `common/tests.py` — autocomplete API tests for shop name (`TestShopNameAutocomplete`) and warehouse name (`TestWarehouseNameAutocomplete`): partial match, empty query returns all, no match returns empty, deleted records excluded, response shape (`id`/`name`)
 
 **Scheduled batch jobs:**
 
