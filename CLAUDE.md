@@ -62,7 +62,7 @@ python manage.py createsuperuser
 - `accounts` — `AbstractUser`を拡張したカスタムユーザーモデル。`Authority`（権限）と`Warehouse`/`Shop`へのFKを持つ
 - `dashboard` — ホーム画面ビュー；`MonthlyOrderSummary`集計モデル
 - `inquiry` — ユーザーロール間の問い合わせ/サポートチケットモデル
-- `common` — 共通ユーティリティ：`BaseModel`、`ActiveManager`、権限チェックMixin、定数、コンテキストプロセッサ
+- `common` — 共通ユーティリティ：`BaseModel`、`ActiveManager`、権限チェックMixin、定数、コンテキストプロセッサ。オートコンプリートAPIエンドポイント（`/common/api/shops/autocomplete/`、`/common/api/warehouses/autocomplete/`）をDjango REST Framework（`djangorestframework`）で提供。シリアライザーは`common/seializers.py`、ビューは`common/views.py`、URLは`config/urls.py`で`common/`プレフィックスで登録。
 
 **ダッシュボード（ホーム画面）：**
 
@@ -195,6 +195,7 @@ python manage.py createsuperuser
 - `inventory/tests/test_order.py` — 発注商品一覧、発注作成、CSVダウンロード/インポート、発注履歴、CSV/PDFエクスポート（店舗側）
 - `inventory/tests/test_relation.py` — 連携一覧/作成/削除、店舗連携倉庫一覧
 - `inquiry/tests.py` — 問い合わせ一覧（受信/送信、ゲスト権限フィルター含む各種フィルター）、問い合わせ作成（認証チェック、バリデーション、カテゴリ選択）、ゲスト問い合わせ、詳細/ステータス更新、削除、label_from_instance、relationクエリパラメータ事前入力、**InquiryCategory CRUD**（一覧/作成/更新/削除の管理者専用ビュー、重複名バリデーション、関連レコードチェック、論理削除、問い合わせ一覧のカテゴリフィルター）、**ゲスト問い合わせフィルターテスト**（authority=guestでゲスト問い合わせのみ表示）、合計66テスト
+- `common/tests.py` — 店舗名オートコンプリート（`TestShopNameAutocomplete`）と倉庫名オートコンプリート（`TestWarehouseNameAutocomplete`）のAPIテスト：部分一致、空クエリで全件返却、一致なしで空返却、論理削除済みレコード除外、レスポンス形式（`id`/`name`）の確認
 
 **定期バッチ処理：**
 

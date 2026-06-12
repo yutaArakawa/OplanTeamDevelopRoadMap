@@ -26,15 +26,23 @@
     <div class="card-body">
         <form method="get" class="row g-3 align-items-end">
             <div class="col-md-6">
-                <label for="shop_name" class="form-label">店舗名</label>
-                <input
-                    type="text"
-                    id="shop_name"
-                    name="shop_name"
-                    class="form-control"
-                    value="{{ selected_shop_name }}"
-                    placeholder="店舗名で検索"
-                >
+                <label for="shop-name-input" class="form-label">店舗名</label>
+                <div class="input-group">
+                    <input
+                        type="text"
+                        id="shop-name-input"
+                        name="shop_name"
+                        class="form-control"
+                        value="{{ selected_shop_name }}"
+                        placeholder="店舗名で検索"
+                        autocomplete="off"
+                    >
+                    <button class="btn btn-outline-secondary" id="shop-clear-btn" type="button">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <!-- ドロップダウンリスト -->
+                <ul id="shop-name-dropdown" class="list-group autocomplete-dropdown"></ul>
             </div>
             <div class="col-auto">
                 <button type="submit" class="btn btn-outline-primary">絞り込む</button>

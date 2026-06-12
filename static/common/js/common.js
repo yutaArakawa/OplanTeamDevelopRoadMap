@@ -51,3 +51,82 @@ document.addEventListener('DOMContentLoaded', function() {
         })
     }
 })
+
+// オートコンプリート機能
+// クリアボタンの初期化
+function initClearBtn(clearBtnId, nameInputId, idInputId) {
+    const clearBtn = document.querySelector(clearBtnId);
+    if (!clearBtn) return;
+
+    clearBtn.addEventListener('click', function() {
+        document.querySelector(nameInputId).value = '';
+        const idInput = document.querySelector(idInputId);
+        if (idInput) {
+            idInput.value = '';
+        }
+    });
+}
+
+// オートコンプリートの初期化
+function initAutocomplete(nameInputId, dropdownId, apiUrl, idInputId) {
+    const nameInput = document.querySelector(nameInputId);
+    const dropdown = document.querySelector(dropdownId);
+    if (!nameInput || !dropdown) return;
+
+    let selectedFromDropdown = false;
+
+    async function showSuggestions(query) {
+        const res = await fetch(`${apiUrl}?q=${query}`);
+        const data = await res.json();
+
+        dropdown.innerHTML = '';
+        data.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action';
+            li.textContent = item.name;
+            li.addEventListener('click', () => {
+                nameInput.value = item.name;
+                const idInput = document.querySelector(idInputId);
+                if (idInput) {
+                    idInput.value = item.id;
+                }
+                dropdown.innerHTML = '';
+                selectedFromDropdown = true;
+            });
+            dropdown.appendChild(li);
+        });
+    }
+
+    nameInput.addEventListener('input', async function() {
+        await showSuggestions(nameInput.value);
+    });
+
+    // フォーム欄クリック時にドロップダウンを表示する
+    nameInput.addEventListener('focus', async function() {
+        if (selectedFromDropdown) {
+            selectedFromDropdown = false;
+            return;
+        }
+        await showSuggestions(nameInput.value);
+    });
+
+    // フォーム欄外クリック時にドロップダウンを閉じる
+    nameInput.addEventListener('blur', function() {
+        dropdown.innerHTML = '';
+        selectedFromDropdown = false;
+    });
+
+    // liクリック時にblurが先に発火してドロップダウンが消えるのを防ぐ
+    dropdown.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+    });
+}
+
+// 店舗名
+initClearBtn('#shop-clear-btn', '#shop-name-input', '#shop-id-input');
+initAutocomplete('#shop-name-input', '#shop-name-dropdown', '/common/api/shops/autocomplete/', '#shop-id-input');
+
+// 倉庫名
+initClearBtn('#warehouse-clear-btn', '#warehouse-name-input', '#warehouse-id-input');
+initAutocomplete('#warehouse-name-input', '#warehouse-name-dropdown', '/common/api/warehouses/autocomplete/', '#warehouse-id-input');
+
