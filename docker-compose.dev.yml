@@ -45,7 +45,7 @@ services:
       - 80:80
     volumes:
       - ./nginx/conf:/etc/nginx/temp
-      - ./staticfiles:/app/static
+      - ./static:/app/static
       - ./media:/app/media
     depends_on:
       - web
