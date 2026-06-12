@@ -113,11 +113,19 @@
             <a href="{% url 'user_list' %}" class="btn btn-secondary">
                 戻る
             </a>
+            {% if user_authority_id == AUTHORITY_ADMIN %}
+            <button
+                type="button"
+                class="btn btn-danger btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteModal"
+                data-delete-url="{{ user.get_delete_url }}"
+            >
+                削除
+            </button>
+            {% endif %}
         </div>
     </form>
-    {% if user_authority_id == AUTHORITY_ADMIN %}
-    {% include 'components/delete_button.html' with delete_url=user.get_delete_url %}
-    {% endif %}
 
 </div>
 {% endblock %}

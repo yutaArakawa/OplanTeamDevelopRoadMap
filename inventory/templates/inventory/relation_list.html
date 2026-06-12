@@ -70,9 +70,12 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                 <button
-                                    type="submit"
-                                    class="btn btn-sm btn-outline-danger"
+                                    type="button"
+                                    class="btn btn-danger btn-sm"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteModal"
                                     {% if relation.has_related_records %}disabled title="発注または問い合わせに紐づく連携情報は削除できません。"{% endif %}
+                                    data-delete-url="{{ relation.get_delete_url }}"
                                 >
                                     削除
                                 </button>

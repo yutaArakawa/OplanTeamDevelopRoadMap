@@ -279,6 +279,7 @@ class InquiryDeleteView(LoginRequiredMixin, View):
         inquiry = get_object_or_404(Inquiry.active_objects, pk=pk)
         inquiry.delete_flg = True
         inquiry.save()
+        messages.success(request, 'お問い合わせを削除しました。')
         return redirect('inquiry_list')
 
 class InquiryCategoryListView(AdminRequiredMixin, TemplateView):

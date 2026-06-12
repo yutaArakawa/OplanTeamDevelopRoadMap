@@ -34,10 +34,12 @@
             </button>
             {% if object %}
             <button
-                type="submit"
-                form="delete-form"
-                class="btn btn-outline-danger"
+                type="button"
+                class="btn btn-danger btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteModal"
                 {% if not can_delete %}disabled title="問い合わせに紐づくカテゴリは削除できません。"{% endif %}
+                data-delete-url="{{ inquirycategory.get_delete_url }}"
             >
                 削除
             </button>
