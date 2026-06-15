@@ -2,6 +2,8 @@ services:
   web:
     build: .
     command: bash /app/entrypoint.sh
+    env_file:
+      - .env
     volumes:
       - .:/app
     ports:
@@ -13,17 +15,19 @@ services:
   db:
     image: mysql:8.0
     restart: always
+    env_file:
+      - .env
     environment:
-      MYSQL_DATABASE: stockdb
-      MYSQL_USER: stockuser
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ${DATABASES_NAME}
+      MYSQL_USER: ${DATABASES_USER}
+      MYSQL_PASSWORD: ${DATABASES_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -32,6 +36,8 @@ services:
   cron:
     build: .
     command: cron -f
+    env_file:
+      - .env
     volumes:
       - .:/app
     depends_on:
