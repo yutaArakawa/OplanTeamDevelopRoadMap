@@ -82,17 +82,16 @@ CI=true python manage.py migrate
 CI=true python manage.py runserver
 ```
 
-### スーパーユーザー作成
+### 初期データとスーパーユーザーの自動作成
 
-```bash
-# Docker コンテナ内の場合
-docker compose exec web python manage.py createsuperuser
+コンテナ起動時（`up`）に `entrypoint.sh` が `seed_master` コマンドを自動実行します。
 
-# ローカル開発の場合
-CI=true python manage.py createsuperuser
-```
+| 処理 | 対象テーブル | 内容 |
+|------|------------|------|
+| Authorityマスタ投入 | `accounts_authority` | 管理者（id=1）・店舗スタッフ（id=2）・倉庫スタッフ（id=3）を作成（既存はスキップ） |
+| スーパーユーザー作成 | `accounts_user` | ユーザー名 `admin`・パスワード `password` で作成（既存はスキップ） |
 
-**注意**: スーパーユーザー作成には `Authority` テーブルに `id=1` が存在する必要があります（初期化済み）。
+手動で `createsuperuser` を実行する必要はありません。
 
 ---
 
@@ -281,12 +280,14 @@ CI=true python manage.py migrate
 
 ### MySQL コンテナにアクセス
 
+接続情報は `.env` の `DATABASES_USER`・`DATABASES_PASSWORD`・`DATABASES_NAME` を参照してください。
+
 ```bash
 # MySQL コマンドラインでアクセス
-docker compose exec db mysql -u stockuser -ppassword stockdb
+docker compose exec db mysql -u <DATABASES_USER> -p<DATABASES_PASSWORD> <DATABASES_NAME>
 
 # SQL クエリ実行例
-docker compose exec db mysql -u stockuser -ppassword stockdb -e "SELECT * FROM inventory_goods LIMIT 5;"
+docker compose exec db mysql -u <DATABASES_USER> -p<DATABASES_PASSWORD> <DATABASES_NAME> -e "SELECT * FROM inventory_goods LIMIT 5;"
 ```
 
 ### データベースリセット
@@ -365,13 +366,16 @@ docker compose exec cron cat /var/log/cron.log
 
 ### 環境変数設定
 
-以下の環境変数を本番環境に設定してください：
+`.env.example` をコピーして `.env` を作成し、本番用の値を設定してください：
 
 ```bash
 DEBUG=False
 ALLOWED_HOSTS=<本番ドメイン>
 SECRET_KEY=<セキュアなシークレットキー>
-DATABASE_URL=mysql://<ユーザー>:<パスワード>@<ホスト>:3306/<DB名>
+DATABASES_NAME=<DB名>
+DATABASES_USER=<ユーザー>
+DATABASES_PASSWORD=<パスワード>
+MYSQL_ROOT_PASSWORD=<rootパスワード>
 ```
 
 ### Docker イメージビルド・デプロイ
