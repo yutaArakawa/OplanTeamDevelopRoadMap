@@ -6,18 +6,25 @@
 
 このプロジェクトはDocker ComposeとMySQLを使用しています。Docker Composeファイルは2種類あります：
 
-- `docker-compose.dev.yml` — 開発環境：Gunicornを8000番ポートで直接起動
+- `docker-compose.dev.yml` — 開発環境：nginx（80番ポート）→ Gunicorn → Django
 - `docker-compose.prod.yml` — 本番環境：nginx（9149番ポート）→ Gunicorn → Django
+
+**環境変数のセットアップ（初回必須）：**
+`.env.example` をコピーして `.env` を作成し、値はチームメンバーから入手してください。
+```bash
+cp .env.example .env
+```
+`settings.py` は `django-environ` を使って `.env` から `SECRET_KEY`・`DEBUG`・`ALLOWED_HOSTS`・DB接続情報を読み込みます。
 
 **開発環境（ローカル）：**
 ```bash
-docker-compose -f docker-compose.dev.yml up
+docker compose -f docker-compose.dev.yml up
 ```
-Webサーバーは `http://localhost:8000` で起動します。MySQLデータベースはポート3307（コンテナ内の3306番ポートにマッピング）で公開されます。
+Webサーバーは `http://localhost`（ポート80）で起動します。MySQLデータベースはポート3307（コンテナ内の3306番ポートにマッピング）で公開されます。
 
 **本番環境：**
 ```bash
-docker-compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 Webサーバーはnginx経由で `http://localhost:9149` で起動します。
 
