@@ -672,39 +672,44 @@ class OrderCreateView(ShopStaffRequiredMixin, TemplateView):
 
 class OrderCsvDownloadView(ShopStaffRequiredMixin, View):
     def get(self, request, *args, **kwargs):
+        try:
+            related_warehouse_ids = Relation.objects.filter(
+                shop=self.request.user.shop
+            ).values_list('warehouse_id', flat=True)
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8')
-        response.write('\ufeff')  # BOMの書き込み
-        filename = "一括商品発注表.csv"
-        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+            stocks = WarehouseStock.active_objects.select_related(
+                'warehouse',
+                'goods',
+                'goods__goods_category',
+            ).filter(
+                warehouse_id__in=related_warehouse_ids
+            ).order_by('warehouse__warehouse_name')
 
-        writer = csv.writer(response)
-        writer.writerow(['倉庫ID', '倉庫名', 'カテゴリ', '商品ID', '商品名', '現在の在庫数', '発注数'])
-        # ログインユーザーの店舗と連携している倉庫情報を取得
-        related_warehouse_ids = Relation.objects.filter(
-            shop=self.request.user.shop
-        ).values_list('warehouse_id', flat=True)
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
+            response.write('\ufeff')  # BOMの書き込み
+            filename = "一括商品発注表.csv"
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
 
-        stocks = WarehouseStock.active_objects.select_related(
-            'warehouse',
-            'goods',
-            'goods__goods_category',
-        ).filter(
-            warehouse_id__in=related_warehouse_ids
-        ).order_by('warehouse__warehouse_name')
+            writer = csv.writer(response)
+            writer.writerow(['倉庫ID', '倉庫名', 'カテゴリ', '商品ID', '商品名', '現在の在庫数', '発注数'])
 
-        for stock in stocks:
-            writer.writerow([
-                stock.warehouse.id,
-                stock.warehouse.warehouse_name,
-                stock.goods.goods_category.category_name,
-                stock.goods.id,
-                stock.goods.goods_name,
-                stock.stock,
-                ''  # 発注数は空欄で出力
-            ])
+            for stock in stocks:
+                writer.writerow([
+                    stock.warehouse.id,
+                    stock.warehouse.warehouse_name,
+                    stock.goods.goods_category.category_name,
+                    stock.goods.id,
+                    stock.goods.goods_name,
+                    stock.stock,
+                    ''
+                ])
 
-        return response
+            return response
+
+        except Exception as e:
+            logger.error("CSV一括発注ダウンロードに失敗しました: %s", e)
+            messages.error(request, 'CSVの生成に失敗しました。')
+            return redirect('order_goods_list')
 
 class OrderCsvImportView(ShopStaffRequiredMixin, View):
     def post(self, request, *args, **kwargs):
@@ -775,116 +780,129 @@ class OrderHistoryView(ShopStaffRequiredMixin, TemplateView):
 class OrderHistoryCSVExportView(ShopStaffRequiredMixin, View):
 
     def get(self, request):
-        orders = services.get_order_history_data(request.user.shop)
-        date_from       = self.request.GET.get('date_from', '')
-        date_to         = self.request.GET.get('date_to',   '')
-        selected_status = self.request.GET.get('status',    '')
-        # 検索条件を反映
-        orders = services.order_filter_by_date_and_status(orders, date_from, date_to, selected_status)
-        rows   = services.build_rows(orders)
+        try:
+            orders = services.get_order_history_data(request.user.shop)
+            date_from       = self.request.GET.get('date_from', '')
+            date_to         = self.request.GET.get('date_to',   '')
+            selected_status = self.request.GET.get('status',    '')
+            orders = services.order_filter_by_date_and_status(orders, date_from, date_to, selected_status)
+            rows   = services.build_rows(orders)
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8')
-        response.write('﻿')  # BOM の書き込み（Excel での文字化け防止）
-        filename = "発注履歴.csv"
-        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
+            response.write('﻿')  # BOM の書き込み（Excel での文字化け防止）
+            filename = "発注履歴.csv"
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
 
-        writer = csv.writer(response)
-        writer.writerow(['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
+            writer = csv.writer(response)
+            writer.writerow(['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
 
-        for row in rows:
-            order = row['order']
-            og    = row['order_goods']
-            writer.writerow([
-                order.relation.warehouse.warehouse_name,
-                og.goods.goods_name if og else '',
-                og.quantity         if og else '',
-                order.get_status_display(),
-                order.ordered_at.strftime('%Y-%m-%d %H:%M:%S'),
-                order.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-            ])
+            for row in rows:
+                order = row['order']
+                og    = row['order_goods']
+                writer.writerow([
+                    order.relation.warehouse.warehouse_name,
+                    og.goods.goods_name if og else '',
+                    og.quantity         if og else '',
+                    order.get_status_display(),
+                    order.ordered_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    order.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                ])
 
-        return response
+            return response
+
+        except Exception as e:
+            logger.error("発注履歴CSVエクスポートに失敗しました: %s", e)
+            messages.error(request, 'CSVの生成に失敗しました。')
+            return redirect('order_history')
 
 
 #発注履歴を PDF でダウンロードする。
 class OrderHistoryPDFExportView(ShopStaffRequiredMixin, View):
 
     def get(self, request):
+        import importlib.util
+        if importlib.util.find_spec('reportlab') is None:
+            logger.error("reportlabがインストールされていません")
+            messages.error(request, 'PDF生成に必要なライブラリがインストールされていません。')
+            return redirect('order_history')
+
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+
         try:
-            from reportlab.lib.pagesizes import A4, landscape
-            from reportlab.lib import colors
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.pdfbase import pdfmetrics
-            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-        except ImportError:
-            return HttpResponse('PDF生成に必要なライブラリがインストールされていません。', status=500)
+            pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
+            FONT = 'HeiseiKakuGo-W5'
 
-        pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
-        FONT = 'HeiseiKakuGo-W5'
+            orders = services.get_order_history_data(request.user.shop)
+            date_from       = self.request.GET.get('date_from', '')
+            date_to         = self.request.GET.get('date_to',   '')
+            selected_status = self.request.GET.get('status',    '')
+            orders = services.order_filter_by_date_and_status(orders, date_from, date_to, selected_status)
+            rows   = services.build_rows(orders)
 
-        orders = services.get_order_history_data(request.user.shop)
-        date_from       = self.request.GET.get('date_from', '')
-        date_to         = self.request.GET.get('date_to',   '')
-        selected_status = self.request.GET.get('status',    '')
-        # 検索条件を反映
-        orders = services.order_filter_by_date_and_status(orders, date_from, date_to, selected_status)
-        rows   = services.build_rows(orders)
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=landscape(A4),
+                leftMargin=20, rightMargin=20,
+                topMargin=20, bottomMargin=20,
+            )
 
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=landscape(A4),
-            leftMargin=20, rightMargin=20,
-            topMargin=20, bottomMargin=20,
-        )
+            styles     = getSampleStyleSheet()
+            jp_style   = ParagraphStyle('jp',    parent=styles['Normal'],  fontName=FONT, fontSize=9)
+            title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
 
-        styles     = getSampleStyleSheet()
-        jp_style   = ParagraphStyle('jp',    parent=styles['Normal'],  fontName=FONT, fontSize=9)
-        title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
+            elements = []
+            elements.append(Paragraph('発注履歴一覧', title_style))
+            elements.append(Spacer(1, 12))
 
-        elements = []
-        elements.append(Paragraph('発注履歴一覧', title_style))
-        elements.append(Spacer(1, 12))
+            header = ['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
+            table_data = [[Paragraph(h, jp_style) for h in header]]
 
-        header = ['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
-        table_data = [[Paragraph(h, jp_style) for h in header]]
+            for row in rows:
+                order = row['order']
+                og    = row['order_goods']
+                table_data.append([
+                    Paragraph(order.relation.warehouse.warehouse_name, jp_style),
+                    Paragraph(og.goods.goods_name if og else '',       jp_style),
+                    Paragraph(str(og.quantity)    if og else '',       jp_style),
+                    Paragraph(order.get_status_display(),              jp_style),
+                    Paragraph(order.ordered_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+                    Paragraph(order.updated_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+                ])
 
-        for row in rows:
-            order = row['order']
-            og    = row['order_goods']
-            table_data.append([
-                Paragraph(order.relation.warehouse.warehouse_name, jp_style),
-                Paragraph(og.goods.goods_name if og else '',       jp_style),
-                Paragraph(str(og.quantity)    if og else '',       jp_style),
-                Paragraph(order.get_status_display(),              jp_style),
-                Paragraph(order.ordered_at.strftime('%Y-%m-%d %H:%M'), jp_style),
-                Paragraph(order.updated_at.strftime('%Y-%m-%d %H:%M'), jp_style),
-            ])
+            col_widths = [110, 140, 60, 80, 110, 110]
+            table = Table(table_data, colWidths=col_widths, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#4caf50')),
+                ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
+                ('FONTNAME',       (0, 0), (-1, -1), FONT),
+                ('FONTSIZE',       (0, 0), (-1, -1), 9),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
+                ('GRID',           (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING',     (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(table)
 
-        col_widths = [110, 140, 60, 80, 110, 110]
-        table = Table(table_data, colWidths=col_widths, repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#4caf50')),
-            ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
-            ('FONTNAME',       (0, 0), (-1, -1), FONT),
-            ('FONTSIZE',       (0, 0), (-1, -1), 9),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
-            ('GRID',           (0, 0), (-1, -1), 0.5, colors.grey),
-            ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING',     (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
-        ]))
-        elements.append(table)
+            doc.build(elements)
+            pdf_bytes = buffer.getvalue()
+            buffer.close()
 
-        doc.build(elements)
-        pdf_bytes = buffer.getvalue()
-        buffer.close()
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            filename = "発注履歴.pdf"
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+            return response
 
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        filename = "発注履歴.pdf"
-        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
-        return response
+        except Exception as e:
+            logger.error("発注履歴PDFエクスポートに失敗しました: %s", e)
+            messages.error(request, 'PDFの生成に失敗しました。')
+            return redirect('order_history')
 
 def _get_filtered_orders(request):
     """ログイン倉庫の受注クエリセットを返す（フィルタ適用済み）。CSV・PDFビューと共用。"""
@@ -976,104 +994,119 @@ class WarehouseOrderCSVExportView(WarehouseStaffRequiredMixin, View):
     """受注一覧を CSV でダウンロードする。"""
 
     def get(self, request):
-        orders = _get_filtered_orders(request)
-        rows   = _build_rows(orders)
+        try:
+            orders = _get_filtered_orders(request)
+            rows   = _build_rows(orders)
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-        filename = '受注履歴.csv'
-        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+            response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+            filename = '受注履歴.csv'
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
 
-        writer = csv.writer(response)
-        writer.writerow(['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
+            writer = csv.writer(response)
+            writer.writerow(['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
 
-        for row in rows:
-            order = row['order']
-            og    = row['order_goods']
-            writer.writerow([
-                order.relation.shop.shop_name,
-                og.goods.goods_name if og else '',
-                og.quantity         if og else '',
-                order.get_status_display(),
-                order.ordered_at.strftime('%Y-%m-%d %H:%M:%S'),
-                order.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-            ])
+            for row in rows:
+                order = row['order']
+                og    = row['order_goods']
+                writer.writerow([
+                    order.relation.shop.shop_name,
+                    og.goods.goods_name if og else '',
+                    og.quantity         if og else '',
+                    order.get_status_display(),
+                    order.ordered_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    order.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                ])
 
-        return response
+            return response
+
+        except Exception as e:
+            logger.error("受注CSVエクスポートに失敗しました: %s", e)
+            messages.error(request, 'CSVの生成に失敗しました。')
+            return redirect('warehouse_order_list')
 
 
 class WarehouseOrderPDFExportView(WarehouseStaffRequiredMixin, View):
     """受注一覧を PDF でダウンロードする。"""
 
     def get(self, request):
+        import importlib.util
+        if importlib.util.find_spec('reportlab') is None:
+            logger.error("reportlabがインストールされていません")
+            messages.error(request, 'PDF生成に必要なライブラリがインストールされていません。')
+            return redirect('warehouse_order_list')
+
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+
         try:
-            from reportlab.lib.pagesizes import A4, landscape
-            from reportlab.lib import colors
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.pdfbase import pdfmetrics
-            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-        except ImportError:
-            return HttpResponse('PDF生成に必要なライブラリがインストールされていません。', status=500)
+            pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
+            FONT = 'HeiseiKakuGo-W5'
 
-        pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
-        FONT = 'HeiseiKakuGo-W5'
+            orders = _get_filtered_orders(request)
+            rows   = _build_rows(orders)
 
-        orders = _get_filtered_orders(request)
-        rows   = _build_rows(orders)
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=landscape(A4),
+                leftMargin=20, rightMargin=20,
+                topMargin=20, bottomMargin=20,
+            )
 
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=landscape(A4),
-            leftMargin=20, rightMargin=20,
-            topMargin=20, bottomMargin=20,
-        )
+            styles     = getSampleStyleSheet()
+            jp_style   = ParagraphStyle('jp',    parent=styles['Normal'],  fontName=FONT, fontSize=9)
+            title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
 
-        styles     = getSampleStyleSheet()
-        jp_style   = ParagraphStyle('jp',    parent=styles['Normal'],  fontName=FONT, fontSize=9)
-        title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
+            elements = []
+            elements.append(Paragraph('受注管理一覧', title_style))
+            elements.append(Spacer(1, 12))
 
-        elements = []
-        elements.append(Paragraph('受注管理一覧', title_style))
-        elements.append(Spacer(1, 12))
+            header = ['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
+            table_data = [[Paragraph(h, jp_style) for h in header]]
 
-        header = ['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
-        table_data = [[Paragraph(h, jp_style) for h in header]]
+            for row in rows:
+                order = row['order']
+                og    = row['order_goods']
+                table_data.append([
+                    Paragraph(order.relation.shop.shop_name,          jp_style),
+                    Paragraph(og.goods.goods_name if og else '',       jp_style),
+                    Paragraph(str(og.quantity)    if og else '',       jp_style),
+                    Paragraph(order.get_status_display(),              jp_style),
+                    Paragraph(order.ordered_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+                    Paragraph(order.updated_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+                ])
 
-        for row in rows:
-            order = row['order']
-            og    = row['order_goods']
-            table_data.append([
-                Paragraph(order.relation.shop.shop_name,          jp_style),
-                Paragraph(og.goods.goods_name if og else '',       jp_style),
-                Paragraph(str(og.quantity)    if og else '',       jp_style),
-                Paragraph(order.get_status_display(),              jp_style),
-                Paragraph(order.ordered_at.strftime('%Y-%m-%d %H:%M'), jp_style),
-                Paragraph(order.updated_at.strftime('%Y-%m-%d %H:%M'), jp_style),
-            ])
+            col_widths = [110, 140, 60, 80, 110, 110]
+            table = Table(table_data, colWidths=col_widths, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#4caf50')),
+                ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
+                ('FONTNAME',       (0, 0), (-1, -1), FONT),
+                ('FONTSIZE',       (0, 0), (-1, -1), 9),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
+                ('GRID',           (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING',     (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(table)
 
-        col_widths = [110, 140, 60, 80, 110, 110]
-        table = Table(table_data, colWidths=col_widths, repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#4caf50')),
-            ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
-            ('FONTNAME',       (0, 0), (-1, -1), FONT),
-            ('FONTSIZE',       (0, 0), (-1, -1), 9),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
-            ('GRID',           (0, 0), (-1, -1), 0.5, colors.grey),
-            ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING',     (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
-        ]))
-        elements.append(table)
+            doc.build(elements)
+            pdf_bytes = buffer.getvalue()
+            buffer.close()
 
-        doc.build(elements)
-        pdf_bytes = buffer.getvalue()
-        buffer.close()
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            filename = '受注履歴.pdf'
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+            return response
 
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        filename = '受注履歴.csv'
-        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
-        return response
+        except Exception as e:
+            logger.error("受注PDFエクスポートに失敗しました: %s", e)
+            messages.error(request, 'PDFの生成に失敗しました。')
+            return redirect('warehouse_order_list')
     
     
