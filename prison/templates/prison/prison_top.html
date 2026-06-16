@@ -1,0 +1,14 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prison</title>
+    <link rel="stylesheet" href="{% static 'prison/css/prison.css' %}">
+</head>
+<body class="prison-top-body">
+    <img src="{% static 'prison/img/oplove_logo.jpg' %}">
+    <a href="{% url 'login' %}" class="prison-top-back-btn">← Return</a>
+</body>
+</html>
