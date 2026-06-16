@@ -55,7 +55,8 @@ INSTALLED_APPS = [
     'accounts',
     'dashboard',
     'common',
-    'inquiry'
+    'inquiry',
+    'prison',
 ]
 
 MIDDLEWARE = [
