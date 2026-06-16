@@ -27,6 +27,7 @@
     let dashing = false;
     let guardWatching = true;
     let gameOver = false;
+    let caught = false;
     let guardTurnedAt = 0;
     let catchTimer = null;
     let guardCycleTimer = null;
@@ -45,7 +46,8 @@
     const overlay     = document.getElementById('overlay');
     const overlayTitle = document.getElementById('overlay-title');
     const failImage   = document.getElementById('fail-image');
-    const retryBtn    = document.getElementById('retry-btn');
+    const retryBtn      = document.getElementById('retry-btn');
+    const goalReturnBtn = document.getElementById('goal-return-btn');
 
     const imgGuardFront   = document.getElementById('img-guard-front').src;
     const imgGuardBack    = document.getElementById('img-guard-back').src;
@@ -60,6 +62,7 @@
         dashing = false;
         guardWatching = true;
         gameOver = false;
+        caught = false;
         guardTurnedAt = 0;
 
         if (catchTimer)       clearTimeout(catchTimer);
@@ -72,9 +75,10 @@
         dashBtn.disabled = false;
         dashBtn.onclick = null;
         dashBtn.classList.remove('pressed');
+        goalReturnBtn.classList.remove('show');
 
         guard.src = imgGuardFront;
-        guard.style.right = '60px';
+        guard.style.right = '5px';
         guard.style.left = '';
 
         prisoner.src = imgPrisonerIdle;
@@ -197,15 +201,17 @@
         if (guardCycleTimer) clearTimeout(guardCycleTimer);
         if (catchTimer)      clearTimeout(catchTimer);
 
-        overlayTitle.textContent = 'GOAL!!';
+        overlayTitle.textContent = 'PRISON BREAK!!';
         overlayTitle.className = 'goal';
         failImage.style.display = 'none';
+        goalReturnBtn.classList.add('show');
         overlay.classList.add('show');
     }
 
     function triggerFail() {
         if (gameOver) return;
         gameOver = true;
+        caught = true;
         dashing = false;
         dashBtn.disabled = true;
         if (guardCycleTimer)    clearTimeout(guardCycleTimer);
@@ -217,7 +223,7 @@
         // Guard chases from right → left toward prisoner
         const guardEl = guard;
         const cw = containerWidth();
-        const guardStartRight = 60; // current right offset in px
+        const guardStartRight = 5; // CSSのright値に合わせる
         const guardStartLeft = cw - guardStartRight - guardEl.offsetWidth;
         const targetLeft = prisonerX - 10;
 
@@ -260,8 +266,11 @@
 
     // --- Space key ---
     document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && !e.repeat) {
-            e.preventDefault();
+        if (e.code !== 'Space' || e.repeat) return;
+        e.preventDefault();
+        if (gameOver && caught) {
+            dashBtn.click();
+        } else {
             onDashStart();
         }
     });

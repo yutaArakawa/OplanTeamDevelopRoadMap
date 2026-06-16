@@ -46,12 +46,15 @@
 
     <!-- Result overlay (covers game + controls on fail) -->
     <div id="overlay">
-        <div id="overlay-title" class="goal">GOAL!!</div>
+        <div id="overlay-title" class="goal">Goal!!</div>
         <img id="fail-image" src="" alt="fail">
         <button id="retry-btn">RETRY</button>
+        <a id="goal-return-btn" href="{% url 'prison' %}?cleared=1" class="escape-back-btn goal-return-btn">← PRISON TOPへ</a>
     </div>
 
 </div>
+
+<a href="{% url 'prison' %}" class="escape-back-btn">← RETURN PRISON</a>
 
 <script src="{% static 'prison/js/escape.js' %}"></script>
 </body>

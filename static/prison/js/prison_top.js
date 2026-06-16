@@ -3,18 +3,18 @@ let timer = null;
 let hideTimer = null;
 
 document.addEventListener('mousemove', (e) => {
-    const isBottomRight = 
-        e.clientX >= window.innerWidth - 20 && 
-        e.clientY >= window.innerHeight - 20;
+    const isBottomRight =
+        e.clientX >= window.innerWidth - 40 &&
+        e.clientY >= window.innerHeight - 40;
 
     if (isBottomRight) {
         if (timer) return;
 
         timer = setTimeout(() => {
-            escapeBtn.show();
+            showEscapeBtn();
 
             hideTimer = setTimeout(() => {
-                escapeBtn.hide();
+                hideEscapeBtn();
             }, 5000);
         }, 5000);
 
@@ -23,3 +23,11 @@ document.addEventListener('mousemove', (e) => {
         timer = null;
     }
 });
+
+function showEscapeBtn() {
+    escapeBtn.classList.add('show');
+}
+
+function hideEscapeBtn() {
+    escapeBtn.classList.remove('show');
+}

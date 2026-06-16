@@ -1,0 +1,78 @@
+/* prison_top */
+.prison-top-body {
+    background: #1a1a2e;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.prison-top-body img {
+    max-width: 100%;
+    max-height: 100vh;
+    object-fit: contain;
+}
+
+.prison-top-back-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    color: #aaa;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-decoration: none;
+    border: 1px solid #555;
+    padding: 8px 16px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.prison-top-back-btn:hover {
+    color: #fff;
+    border-color: #aaa;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.escape-prison-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    color: #aaa;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-decoration: none;
+    border: 1px solid #555;
+    padding: 8px 16px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.escape-prison-btn:hover {
+    color: #fff;
+    border-color: #aaa;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+#escape-link {
+    display: none;
+}
+
+#escape-link.show {
+    display: block;
+}
+
+.prison-top-body::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(ellipse at bottom right, rgba(0,0,0,0.92) 0%, transparent 70%);
+    pointer-events: none;
+}
