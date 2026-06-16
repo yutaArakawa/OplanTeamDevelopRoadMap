@@ -35,7 +35,7 @@
 ```bash
 # リポジトリをクローン
 git clone <repository-url>
-cd python_stock_app
+cd OplanTeamDevelopRoadMap
 
 # .env ファイルを作成（値はチームメンバーから入手）
 cp .env.example .env
