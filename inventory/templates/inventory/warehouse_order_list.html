@@ -100,12 +100,24 @@
               <input type="hidden" name="next" value="{{ request.get_full_path }}">
               <select name="status" class="form-select form-select-sm select-min-width">
                 {% for value, label in status_choices %}
-                {% if value == 0 or value == 1 %}
-                <option value="{{ value }}"
-                  {% if row.order.status == value %}selected{% endif %}>
-                  {{ label }}
-                </option>
-                {% endif %}
+                  {% if value == 4 %}
+                    <option value="{{ value }}">{{ label }}</option>
+                  {% elif row.order.status == 0 and value == 0 %}
+                    <option value="{{ value }}">{{ label }}</option>
+                  {% elif row.order.status == 0 and value == 1 %}
+                    <option value="{{ value }}">{{ label }}</option>
+                  {% elif row.order.status == 1 and value == 1 %}
+                    <option value="{{ value }}" selected>{{ label }}</option>
+                  {% elif row.order.status == 1 and value == 2 %}
+                    <option value="{{ value }}">{{ label }}</option>
+                  {% elif row.order.status == 2 and value == 2 %}
+                    <option value="{{ value }}" selected>{{ label }}</option>
+                  {% elif row.order.status == 2 and value == 3 %}
+                    <option value="{{ value }}">{{ label }}</option>
+                  {% elif row.order.status == 3 and value == 3 %}
+                    <option value="{{ value }}" selected>{{ label }}</option>
+                  {% elif row.order.status == 4 and value == 4  %}
+                  {% endif %}
                 {% endfor %}
               </select>
               <button type="submit" class="btn btn-sm btn-primary text-nowrap">更新</button>

@@ -16,6 +16,7 @@ from django.views import View
 from django.views.generic import CreateView, TemplateView, UpdateView, ListView
 from django.http import HttpResponse
 from common.mixins import AdminRequiredMixin, ShopStaffRequiredMixin, WarehouseStaffRequiredMixin
+from .services import minus_stock, restore_stock
 
 from inventory.forms import (
     GoodsCategoryForm,
@@ -948,27 +949,59 @@ class WarehouseOrderListView(WarehouseStaffRequiredMixin, TemplateView):
 
 class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
 
-    ALLOWED_STATUSES = {Order.Status.ORDERED.value, Order.Status.PREPARING.value}
+    ALLOWED_STATUSES = {Order.Status.ORDERED.value,
+                        Order.Status.PREPARING.value,
+                        Order.Status.SHIPPED.value,
+                        Order.Status.DELIVERED.value,
+                        Order.Status.CANCELED.value,}
+
+    STOCK_DEDUCTED_STATUSES = {
+        Order.Status.SHIPPED.value,
+        Order.Status.DELIVERED.value,
+    }
 
     def post(self, request, pk):
-        order = get_object_or_404(
-            Order.active_objects,
-            pk=pk,
-            relation__warehouse=request.user.warehouse,
-        )
-        new_status = request.POST.get('status', '').strip()
-        try:
-            new_status_int = int(new_status)
-            if new_status_int not in self.ALLOWED_STATUSES:
-                raise ValueError
-        except (ValueError, TypeError):
-            messages.error(request, '無効なステータスです。')
-            return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+        with transaction.atomic():
+            order = get_object_or_404(
+                Order.active_objects.select_for_update(),
+                pk=pk,
+                relation__warehouse=request.user.warehouse,
+            )
+            new_status = request.POST.get('status', '').strip()
+            try:
+                new_status_int = int(new_status)
+                if new_status_int not in self.ALLOWED_STATUSES:
+                    raise ValueError
+            except (ValueError, TypeError):
+                messages.error(request, '無効なステータスです。')
+                return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
-        order.status = new_status_int
-        order.save(update_fields=['status', 'updated_at'])
-        messages.success(request, 'ステータスを更新しました。')
-        return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+            old_status = order.status
+
+            # 在庫未減算の状態から発送済みになる時だけ引く
+            if (
+                old_status not in self.STOCK_DEDUCTED_STATUSES
+                and new_status_int == Order.Status.SHIPPED.value
+            ):
+                minus_stock(order)
+
+            # 在庫減算済みの状態から準備中に戻す時だけ戻す
+            if (
+                old_status in self.STOCK_DEDUCTED_STATUSES
+                and new_status_int == Order.Status.PREPARING.value
+            ):
+                restore_stock(order)
+
+            if (
+                old_status in self.STOCK_DEDUCTED_STATUSES
+                and new_status_int == Order.Status.CANCELED.value
+            ):
+                restore_stock(order)
+
+            order.status = new_status_int
+            order.save(update_fields=['status', 'updated_at'])
+            messages.success(request, 'ステータスを更新しました。')
+            return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
 
 class WarehouseOrderCSVExportView(WarehouseStaffRequiredMixin, View):
@@ -1072,5 +1105,4 @@ class WarehouseOrderPDFExportView(WarehouseStaffRequiredMixin, View):
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="warehouse_orders.pdf"'
         return response
-    
     

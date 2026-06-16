@@ -95,3 +95,39 @@ def insert_initial_shop_stock_for_goods(goods, shops):
             goods=goods,
             defaults={'stock': 0}
         )
+
+
+# 倉庫スタッフユーザーが発送済みを選択した際、在庫数から発送数を引いて処理する関数
+def minus_stock(order):
+
+    warehouse = order.relation.warehouse
+
+    order_goods_list = OrderGoods.objects.filter(order=order)
+
+    for order_goods in order_goods_list:
+
+        stock = WarehouseStock.objects.get(
+            warehouse=warehouse,
+            goods=order_goods.goods
+        )
+
+        stock.stock -= order_goods.quantity
+        stock.save(update_fields=["stock"])
+
+
+# 発送済みから準備中に戻した際、在庫数を元に戻す関数
+def restore_stock(order):
+
+    warehouse = order.relation.warehouse
+
+    order_goods_list = OrderGoods.objects.filter(order=order)
+
+    for order_goods in order_goods_list:
+
+        stock = WarehouseStock.objects.get(
+            warehouse=warehouse,
+            goods=order_goods.goods
+        )
+
+        stock.stock += order_goods.quantity
+        stock.save(update_fields=["stock"])
