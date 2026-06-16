@@ -1,0 +1,58 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prison Escape</title>
+    <link rel="stylesheet" href="{% static 'prison/css/prison.css' %}">
+</head>
+<body class="prison-page">
+
+<!-- Hidden image elements for JS to read src -->
+<img id="img-guard-front"    src="{% static 'prison/images/guard_front.png' %}"    style="display:none" alt="">
+<img id="img-guard-back"     src="{% static 'prison/images/guard_back.png' %}"     style="display:none" alt="">
+<img id="img-prisoner-idle"  src="{% static 'prison/images/prisoner_idle.png' %}"  style="display:none" alt="">
+<img id="img-prisoner-run"   src="{% static 'prison/images/prisoner_run.png' %}"   style="display:none" alt="">
+<img id="img-fail"           src="{% static 'prison/images/fail.JPG' %}"            style="display:none" alt="">
+
+<div id="game-wrapper">
+
+    <div id="game-container">
+        <!-- Background -->
+        <img id="background" src="{% static 'prison/images/background.jpeg' %}" alt="prison background">
+
+        <!-- Guard -->
+        <img id="guard" src="{% static 'prison/images/guard_front.png' %}" alt="guard">
+
+        <!-- Prisoner -->
+        <img id="prisoner" src="{% static 'prison/images/prisoner_idle.png' %}" alt="prisoner">
+
+        <!-- Guard status indicator -->
+        <div id="guard-status" class="watching">👁 WATCHING</div>
+    </div>
+
+    <!-- Progress bar -->
+    <div id="progress-bar-wrapper">
+        <div id="progress-bar"></div>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+        <div id="status-text">⚠ 止まれ！</div>
+        <button id="dash-btn">DASH</button>
+        <div id="hint-text">看守が後ろを向いている間だけ長押しで走れ！</div>
+    </div>
+
+    <!-- Result overlay (covers game + controls on fail) -->
+    <div id="overlay">
+        <div id="overlay-title" class="goal">GOAL!!</div>
+        <img id="fail-image" src="" alt="fail">
+        <button id="retry-btn">RETRY</button>
+    </div>
+
+</div>
+
+<script src="{% static 'prison/js/escape.js' %}"></script>
+</body>
+</html>

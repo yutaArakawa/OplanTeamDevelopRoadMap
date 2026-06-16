@@ -1,0 +1,214 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body.prison-page {
+    background: #1a1a2e;
+    overflow: hidden;
+}
+
+#game-wrapper {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    height: 360px;
+    overflow: hidden;
+    border: 3px solid #444;
+    background: #000;
+}
+
+#background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: auto;
+    image-rendering: pixelated;
+    transition: none;
+}
+
+#prisoner {
+    position: absolute;
+    bottom: 20px;
+    height: 133px;
+    width: auto;
+    z-index: 10;
+    image-rendering: auto;
+    transition: none;
+}
+
+#guard {
+    position: absolute;
+    bottom: 20px;
+    right: 5px;
+    height: 220px;
+    width: auto;
+    z-index: 10;
+    image-rendering: auto;
+}
+
+#progress-bar-wrapper {
+    width: 100%;
+    max-width: 1200px;
+    margin-top: 10px;
+    background: #333;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00c853, #69f0ae);
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+#controls {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+#status-text {
+    color: #fff;
+    font-size: 18px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+    height: 28px;
+}
+
+#dash-btn {
+    width: 200px;
+    height: 70px;
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    background: linear-gradient(180deg, #ff6b35, #c0392b);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 6px 0 #7b241c;
+    transition: transform 0.05s, box-shadow 0.05s;
+    font-family: 'Courier New', monospace;
+}
+
+#dash-btn:active,
+#dash-btn.pressed {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #7b241c;
+}
+
+#dash-btn:disabled {
+    background: #555;
+    box-shadow: 0 6px 0 #333;
+    cursor: default;
+}
+
+#hint-text {
+    color: #aaa;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Overlay for GOAL / FAIL — covers game-wrapper (game + controls) */
+#overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.82);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+}
+
+#overlay.show {
+    display: flex;
+}
+
+#overlay-title {
+    font-size: 64px;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 8px;
+    text-shadow: 0 0 30px currentColor;
+    flex-shrink: 0;
+}
+
+#overlay-title.goal {
+    color: #ffd700;
+}
+
+#overlay-title.fail {
+    color: #ff4444;
+}
+
+#fail-image {
+    display: none;
+    max-height: 55vh;
+    max-width: 70%;
+    width: auto;
+    object-fit: contain;
+}
+
+#retry-btn {
+    padding: 12px 40px;
+    font-size: 20px;
+    background: #2c3e50;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+    transition: background 0.2s;
+}
+
+#retry-btn:hover {
+    background: #3d5166;
+}
+
+/* Guard direction indicator */
+#guard-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    background: rgba(0,0,0,0.6);
+    padding: 4px 10px;
+    border-radius: 4px;
+    z-index: 20;
+}
+
+#guard-status.watching {
+    color: #ff4444;
+}
+
+#guard-status.away {
+    color: #00c853;
+}
