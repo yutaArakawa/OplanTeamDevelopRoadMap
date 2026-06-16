@@ -1,18 +1,23 @@
 services:
   web:
+    platform: linux/x86_64
     build: .
-    command: bash /app/entrypoint.sh
+    command: bash -c "/app/entrypoint.sh && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000"
     env_file:
       - .env
     volumes:
       - .:/app
-    ports:
-      - "9149:8000"
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - backend_network
+      - frontend_network
 
   db:
+    platform: linux/x86_64
     image: mysql:8.0
     restart: always
     env_file:
@@ -32,6 +37,26 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    networks:
+      - backend_network
+  
+  nginx:
+    platform: linux/x86_64
+    build:
+      context: ./nginx/
+      dockerfile: Dockerfile
+    ports:
+      - 9149:80
+    volumes:
+      - ./nginx/conf:/etc/nginx/temp
+      - ./static:/app/static
+      - ./media:/app/media
+    depends_on:
+      - web
+    environment:
+      - BASIC=${BASIC:-false}
+    networks:
+      - frontend_network
   
   cron:
     build: .
@@ -44,6 +69,12 @@ services:
       - db
     environment:
       - TZ=Asia/Tokyo
+    networks:
+      - backend_network
 
 volumes:
   mysql_data:
+
+networks:
+  frontend_network:
+  backend_network:

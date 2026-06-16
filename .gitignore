@@ -23,3 +23,6 @@ mysql_data/
 
 # migrations cache
 */migrations/__pycache__/
+
+# staticfiles
+staticfiles/
