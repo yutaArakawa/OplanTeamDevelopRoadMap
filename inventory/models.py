@@ -209,8 +209,8 @@ class Goods(BaseModel):
 
     def has_related_records(self):
         return (
-            self.shopstock_set.filter(delete_flg=False).exists()
-            or self.warehousestock_set.filter(delete_flg=False).exists()
+            self.shopstock_set.filter(delete_flg=False, stock__gt=0).exists()
+            or self.warehousestock_set.filter(delete_flg=False, stock__gt=0).exists()
             or self.ordergoods_set.filter(delete_flg=False).exists()
         )
 

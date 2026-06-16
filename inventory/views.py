@@ -530,7 +530,6 @@ class RelationListView(AdminRequiredMixin, TemplateView):
         )
         return context
 
-
 class ShopConnectedWarehouseListView(ShopStaffRequiredMixin, TemplateView):
     template_name = 'inventory/shop_connected_warehouse_list.html'
 

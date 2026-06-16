@@ -61,6 +61,28 @@ class TestDashboard:
         ctx = response.context
         assert 'shop_ranking' in ctx
         assert 'all_shop_ranking' in ctx
+        assert 'ranking_date' in ctx
+
+    def test_shop_ranking_falls_back_to_latest_when_no_yesterday_data(self, client, shop_user, relation, goods):
+        """昨日のデータがない場合、最新の集計日のデータを使う"""
+        two_days_ago = timezone.now().date() - timedelta(days=2)
+        MonthlyOrderSummary.objects.create(
+            count_date=two_days_ago,
+            shop=relation.shop,
+            goods=goods,
+            total_quantity=5
+        )
+        client.force_login(shop_user)
+        response = client.get(reverse('home'))
+        assert response.context['ranking_date'] == two_days_ago
+        ranking_names = [r['goods__goods_name'] for r in response.context['shop_ranking']]
+        assert goods.goods_name in ranking_names
+
+    def test_shop_ranking_date_is_none_when_no_data(self, client, shop_user):
+        """集計データが一切ない場合、ranking_date は None"""
+        client.force_login(shop_user)
+        response = client.get(reverse('home'))
+        assert response.context['ranking_date'] is None
 
     def test_shop_ranking_includes_recent_orders(self, client, shop_user, relation, goods):
         """店舗スタッフのランキングに直近の発注が反映される"""

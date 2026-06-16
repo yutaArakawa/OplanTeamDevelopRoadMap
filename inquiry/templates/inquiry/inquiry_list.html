@@ -32,6 +32,10 @@
     <div class="col-auto">
         <select name="authority" class="form-select">
             <option value="">権限 -</option>
+            <!-- 選択肢にゲストを追加 -->
+             <option value="guest" {% if request.GET.authority == 'guest' %}selected{% endif %}>
+                ゲスト
+            </option>
             {% for auth in authorities %}
             <option value="{{ auth.id }}" {% if request.GET.authority == auth.id|stringformat:"s" %}selected{% endif %}>
                 {{ auth }}
@@ -81,7 +85,7 @@
 
             <td>{{ inquiry.inquiry_category.category_name }}</td>
 
-            <td>{{ inquiry.from_authority }}</td>
+            <td>{{ inquiry.get_from_authority_display }}</td>
 
             <td>
                 {% if inquiry.from_belong_shop %}
