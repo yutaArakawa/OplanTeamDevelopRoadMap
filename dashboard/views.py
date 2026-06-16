@@ -7,9 +7,7 @@ from django.views.generic import TemplateView
 
 from accounts.models import User
 from common.constants import AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE
-from inventory.models import (
-    Goods, GoodsCategory, Order, OrderGoods, Shop, ShopStock, Warehouse, WarehouseStock
-)
+from inventory.models import (Goods, GoodsCategory, Order, OrderGoods, Shop, ShopStock, Warehouse, WarehouseStock)
 from dashboard.models import MonthlyOrderSummary
 from dashboard import services
 
@@ -33,15 +31,24 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         elif user.authority_id == AUTHORITY_SHOP:
             yesterday = timezone.now().date() - timedelta(days=1)
-            # ログイン店舗の昨日時点の1ヶ月の発注ランキングデータを取得
-            monthly_order_summary_by_shop = services.get_monthly_order_summary(yesterday, shop=user.shop)
-            login_shop_ranking = services.get_order_ranking(monthly_order_summary_by_shop, limit=10)
-            # 昨日時点の全店舗の1ヶ月の発注ランキングデータを取得
-            monthly_order_summary = services.get_monthly_order_summary(yesterday)
-            all_shop_ranking = services.get_order_ranking(monthly_order_summary, limit=10)
+            # 昨日のデータがなければ最新の集計日を使う
+            if MonthlyOrderSummary.active_objects.filter(count_date=yesterday).exists():
+                ranking_date = yesterday
+            else:
+                ranking_date = services.get_latest_summary_date()
+
+            if ranking_date:
+                monthly_order_summary_by_shop = services.get_monthly_order_summary(ranking_date, shop=user.shop)
+                login_shop_ranking = services.get_order_ranking(monthly_order_summary_by_shop, limit=10)
+                monthly_order_summary = services.get_monthly_order_summary(ranking_date)
+                all_shop_ranking = services.get_order_ranking(monthly_order_summary, limit=10)
+            else:
+                login_shop_ranking = MonthlyOrderSummary.objects.none()
+                all_shop_ranking = MonthlyOrderSummary.objects.none()
 
             context['shop_ranking'] = login_shop_ranking
             context['all_shop_ranking'] = all_shop_ranking
+            context['ranking_date'] = ranking_date
 
         elif user.authority_id == AUTHORITY_WAREHOUSE:
             warehouse_stocks = WarehouseStock.active_objects.filter(

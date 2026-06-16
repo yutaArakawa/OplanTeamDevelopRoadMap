@@ -73,6 +73,7 @@
         <div class="card shadow-sm h-100">
             <div class="card-header fw-bold">
                 自店舗 発注ランキング（過去1か月）
+                {% if ranking_date %}<small class="fw-normal text-muted ms-2">集計日: {{ ranking_date }}</small>{% endif %}
             </div>
             <div class="card-body p-0">
                 <table class="table align-middle mb-0">

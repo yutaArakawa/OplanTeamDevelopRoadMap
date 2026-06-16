@@ -11,6 +11,12 @@ def get_monthly_order_summary(date, shop=None):
     
     return qs.select_related('goods')
 
+# 最新の集計日付を返す。データがなければ None を返す
+def get_latest_summary_date():
+    latest = MonthlyOrderSummary.active_objects.order_by('-count_date').values('count_date').first()
+
+    return latest['count_date'] if latest else None
+
 # 月次の発注数ランキングを取得
 def get_order_ranking(summary_queryset, limit=10):
     return summary_queryset.values(
