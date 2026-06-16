@@ -1,18 +1,15 @@
 from django.shortcuts import render
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from common.seializers import ShopNameSerializer, WarehouseNameSerializer
 
-from inventory.models import (
-    Shop, Warehouse
-)
+from inventory.models import (Shop, Warehouse)
 # Create your views here.
 
 
-class ShopNameAutoCompleteView(APIView):
-    permission_classes = [IsAuthenticated]
+class ShopNameAutoCompleteView(LoginRequiredMixin, APIView):
 
     def get(self, request):
         query = request.GET.get('q', '')
@@ -20,8 +17,7 @@ class ShopNameAutoCompleteView(APIView):
         serializer = ShopNameSerializer(shops, many=True)
         return Response(serializer.data)
 
-class WarehouseNameAutoCompleteView(APIView):
-    permission_classes = [IsAuthenticated]
+class WarehouseNameAutoCompleteView(LoginRequiredMixin, APIView):
 
     def get(self, request):
         query = request.GET.get('q', '')
