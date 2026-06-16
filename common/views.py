@@ -10,7 +10,6 @@ from inventory.models import (Shop, Warehouse)
 
 
 class ShopNameAutoCompleteView(LoginRequiredMixin, APIView):
-
     def get(self, request):
         query = request.GET.get('q', '')
         shops = Shop.active_objects.filter(shop_name__icontains=query)[:10]
@@ -18,7 +17,6 @@ class ShopNameAutoCompleteView(LoginRequiredMixin, APIView):
         return Response(serializer.data)
 
 class WarehouseNameAutoCompleteView(LoginRequiredMixin, APIView):
-
     def get(self, request):
         query = request.GET.get('q', '')
         warehouses = Warehouse.active_objects.filter(warehouse_name__icontains=query)[:10]
