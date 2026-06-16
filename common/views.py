@@ -5,9 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from common.seializers import ShopNameSerializer, WarehouseNameSerializer
 
-from inventory.models import (
-    Shop, Warehouse
-)
+from inventory.models import (Shop, Warehouse)
 # Create your views here.
 
 
