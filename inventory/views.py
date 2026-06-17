@@ -16,7 +16,7 @@ from django.views import View
 from django.views.generic import CreateView, TemplateView, UpdateView, ListView
 from django.http import HttpResponse
 from common.mixins import AdminRequiredMixin, ShopStaffRequiredMixin, WarehouseStaffRequiredMixin
-from .services import minus_stock, restore_stock
+from .services import minus_stock, restore_stock, add_shop_stock, subtract_shop_stock
 
 from inventory.forms import (
     GoodsCategoryForm,
@@ -985,18 +985,26 @@ class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
             ):
                 minus_stock(order)
 
-            # 在庫減算済みの状態から準備中に戻す時だけ戻す
-            if (
-                old_status in self.STOCK_DEDUCTED_STATUSES
-                and new_status_int == Order.Status.PREPARING.value
-            ):
-                restore_stock(order)
-
+            # 在庫減算済みの状態からキャンセルになる時は倉庫在庫を戻す
             if (
                 old_status in self.STOCK_DEDUCTED_STATUSES
                 and new_status_int == Order.Status.CANCELED.value
             ):
                 restore_stock(order)
+
+            # 発送済みから納品済みになる時に店舗在庫を追加する
+            if (
+                old_status == Order.Status.SHIPPED.value
+                and new_status_int == Order.Status.DELIVERED.value
+            ):
+                add_shop_stock(order)
+
+            # 納品済みからキャンセルになる時に店舗在庫を引く
+            if (
+                old_status == Order.Status.DELIVERED.value
+                and new_status_int == Order.Status.CANCELED.value
+            ):
+                subtract_shop_stock(order)
 
             order.status = new_status_int
             order.save(update_fields=['status', 'updated_at'])

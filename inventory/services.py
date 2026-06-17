@@ -131,3 +131,39 @@ def restore_stock(order):
 
         stock.stock += order_goods.quantity
         stock.save(update_fields=["stock"])
+
+
+# 納品済みになった際、店舗在庫に納品数を追加する関数
+def add_shop_stock(order):
+
+    shop = order.relation.shop
+
+    order_goods_list = OrderGoods.objects.filter(order=order)
+
+    for order_goods in order_goods_list:
+
+        stock = ShopStock.objects.get(
+            shop=shop,
+            goods=order_goods.goods
+        )
+
+        stock.stock += order_goods.quantity
+        stock.save(update_fields=["stock"])
+
+
+# 納品済みからキャンセルに戻した際、店舗在庫から納品数を引く関数
+def subtract_shop_stock(order):
+
+    shop = order.relation.shop
+
+    order_goods_list = OrderGoods.objects.filter(order=order)
+
+    for order_goods in order_goods_list:
+
+        stock = ShopStock.objects.get(
+            shop=shop,
+            goods=order_goods.goods
+        )
+
+        stock.stock -= order_goods.quantity
+        stock.save(update_fields=["stock"])
