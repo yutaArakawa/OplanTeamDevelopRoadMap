@@ -89,6 +89,9 @@ services:
       - web
     stdin_open: true
     tty: true
+    networks:
+      - frontend_network
+      - backend_network
 
 volumes:
   mysql_data:

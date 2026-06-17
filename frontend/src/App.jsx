@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/react">
       <div className="app">
         <h1>Stock Management System（React）</h1>
         <Routes>
