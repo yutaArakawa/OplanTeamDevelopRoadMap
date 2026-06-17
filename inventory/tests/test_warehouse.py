@@ -583,11 +583,11 @@ class TestWarehouseOrderStatusUpdate:
         assert any('更新しました' in str(m) for m in msgs)
 
     def test_invalid_status_shows_error(self, client, warehouse_user, warehouse_order):
-        """許可されていないステータス（発送済みなど）はエラーになる"""
+        """存在しないステータス値はエラーになる"""
         client.force_login(warehouse_user)
         response = client.post(
             reverse('warehouse_order_status_update', kwargs={'pk': warehouse_order.pk}),
-            {'status': Order.Status.SHIPPED},  # 2 は ALLOWED_STATUSES 外
+            {'status': 999},  # 存在しないステータス値
         )
         msgs = list(get_messages(response.wsgi_request))
         assert any('無効なステータス' in str(m) for m in msgs)
