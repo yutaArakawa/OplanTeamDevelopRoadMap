@@ -55,6 +55,8 @@ services:
       - web
     environment:
       - BASIC=${BASIC:-false}
+      - STATIC_DIR=/app/static/
+      - STATIC_CACHE_CONTROL=no-cache, must-revalidate
     networks:
       - frontend_network
   
