@@ -45,182 +45,29 @@ class TestLogin:
 
 
 # ---------------------------------------------------------------------------
-# ユーザー一覧 – 編集ボタン
+# ユーザー一覧
 # ---------------------------------------------------------------------------
 
 class TestUserList:
-    def test_edit_button_exists(self, client, admin_user, shop_user):
-        """ユーザー一覧に編集ボタンが表示される"""
+    def test_list_page_accessible(self, client, admin_user):
+        """ユーザー一覧ページに正常アクセスできる"""
         client.force_login(admin_user)
         response = client.get(reverse('user_list'))
         assert response.status_code == 200
-        assert '編集' in response.content.decode()
 
-    def test_edit_button_links_to_user_update(self, client, admin_user, shop_user):
-        """編集ボタンが正しい user_update URL を指している"""
+    def test_mypage_button_shown_for_own_account(self, client, admin_user):
+        """自分のアカウント行にマイページボタンが表示される"""
         client.force_login(admin_user)
         response = client.get(reverse('user_list'))
-        expected_url = reverse('user_update', kwargs={'pk': shop_user.pk})
-        assert expected_url in response.content.decode()
+        assert reverse('mypage') in response.content.decode()
 
-
-# ---------------------------------------------------------------------------
-# ユーザー編集画面
-# ---------------------------------------------------------------------------
-
-class TestUserUpdate:
-    def test_update_page_accessible(self, client, admin_user, shop_user):
-        """編集ページに正常アクセスできる"""
+    def test_mypage_button_not_shown_for_other_accounts(self, client, admin_user, shop_user):
+        """他ユーザーの行にはマイページボタンが表示されない（テーブル内は1件のみ）"""
         client.force_login(admin_user)
-        response = client.get(reverse('user_update', kwargs={'pk': shop_user.pk}))
-        assert response.status_code == 200
-
-    def test_update_page_shows_user_info(self, client, admin_user, shop_user):
-        """編集ページに対象ユーザーの情報が表示される"""
-        client.force_login(admin_user)
-        response = client.get(reverse('user_update', kwargs={'pk': shop_user.pk}))
-        assert shop_user.username in response.content.decode()
-
-    # ---- 管理者 ----
-
-    def test_admin_all_fields_editable(self, client, admin_user, shop_user):
-        """管理者はすべてのフィールドが編集可能（disabled でない）"""
-        client.force_login(admin_user)
-        response = client.get(reverse('user_update', kwargs={'pk': shop_user.pk}))
-        form = response.context['form']
-        assert 'username' in form.fields and not form.fields['username'].disabled
-        assert 'user_gender' in form.fields and not form.fields['user_gender'].disabled
-        assert 'authority' in form.fields and not form.fields['authority'].disabled
-
-    def test_admin_delete_button_visible(self, client, admin_user, shop_user):
-        """管理者ログイン時は削除ボタンが表示される"""
-        client.force_login(admin_user)
-        response = client.get(reverse('user_update', kwargs={'pk': shop_user.pk}))
-        # 削除モーダルを開くトリガーボタンが存在する
-        assert 'data-bs-target="#deleteModal"' in response.content.decode()
-
-    def test_admin_can_update_user(self, client, admin_user, shop_user):
-        """管理者はユーザー情報を正常に更新できる"""
-        client.force_login(admin_user)
-        url = reverse('user_update', kwargs={'pk': shop_user.pk})
-        response = client.post(url, {
-            'username': 'updated_shop_user',
-            'user_gender': 2,
-            'authority': shop_user.authority_id,
-            'shop': shop_user.shop_id,
-            'new_password1': '',
-            'new_password2': '',
-        })
-        assert response.status_code == 302
-        shop_user.refresh_from_db()
-        assert shop_user.username == 'updated_shop_user'
-        assert shop_user.user_gender == 2
-
-    # ---- 店舗スタッフ ----
-
-    def test_shop_staff_only_shop_field_editable(self, client, shop_user):
-        """店舗スタッフは所属店舗のみ編集可能、他フィールドは disabled"""
-        client.force_login(shop_user)
-        response = client.get(reverse('user_update', kwargs={'pk': shop_user.pk}))
-        form = response.context['form']
-        assert form.fields['username'].disabled
-        assert form.fields['user_gender'].disabled
-        assert form.fields['authority'].disabled
-        assert 'warehouse' not in form.fields
-
-    def test_shop_staff_no_delete_button(self, client, shop_user):
-        """店舗スタッフは削除ボタンが非表示"""
-        client.force_login(shop_user)
-        response = client.get(reverse('user_update', kwargs={'pk': shop_user.pk}))
-        # 削除モーダルを開くトリガーボタンが存在しない
-        assert 'data-bs-target="#deleteModal"' not in response.content.decode()
-
-    def test_shop_staff_can_update_shop(self, client, shop_user, shop2):
-        """店舗スタッフは所属店舗を変更できる"""
-        client.force_login(shop_user)
-        url = reverse('user_update', kwargs={'pk': shop_user.pk})
-        response = client.post(url, {
-            'username': shop_user.username,
-            'user_gender': shop_user.user_gender,
-            'authority': shop_user.authority_id,
-            'shop': shop2.pk,
-            'new_password1': '',
-            'new_password2': '',
-        })
-        assert response.status_code == 302
-        shop_user.refresh_from_db()
-        assert shop_user.shop_id == shop2.pk
-
-    def test_shop_staff_cannot_change_restricted_fields(self, client, shop_user, authority_admin):
-        """店舗スタッフは権限・ユーザー名など制限フィールドを変更できない"""
-        client.force_login(shop_user)
-        url = reverse('user_update', kwargs={'pk': shop_user.pk})
-        original_username = shop_user.username
-        response = client.post(url, {
-            'username': 'hacked_name',
-            'user_gender': 2,
-            'authority': authority_admin.pk,  # 権限昇格を試みる
-            'shop': shop_user.shop_id,
-            'new_password1': '',
-            'new_password2': '',
-        })
-        assert response.status_code == 302
-        shop_user.refresh_from_db()
-        assert shop_user.username == original_username
-        assert shop_user.authority_id == 2  # 管理者に昇格していない
-
-    # ---- 倉庫スタッフ ----
-
-    def test_warehouse_staff_only_warehouse_field_editable(self, client, warehouse_user):
-        """倉庫スタッフは所属倉庫のみ編集可能、他フィールドは disabled"""
-        client.force_login(warehouse_user)
-        response = client.get(reverse('user_update', kwargs={'pk': warehouse_user.pk}))
-        form = response.context['form']
-        assert form.fields['username'].disabled
-        assert form.fields['user_gender'].disabled
-        assert form.fields['authority'].disabled
-        assert 'shop' not in form.fields
-
-    def test_warehouse_staff_no_delete_button(self, client, warehouse_user):
-        """倉庫スタッフは削除ボタンが非表示"""
-        client.force_login(warehouse_user)
-        response = client.get(reverse('user_update', kwargs={'pk': warehouse_user.pk}))
-        # 削除モーダルを開くトリガーボタンが存在しない
-        assert 'data-bs-target="#deleteModal"' not in response.content.decode()
-
-    def test_warehouse_staff_can_update_warehouse(self, client, warehouse_user, warehouse2):
-        """倉庫スタッフは所属倉庫を変更できる"""
-        client.force_login(warehouse_user)
-        url = reverse('user_update', kwargs={'pk': warehouse_user.pk})
-        response = client.post(url, {
-            'username': warehouse_user.username,
-            'user_gender': warehouse_user.user_gender,
-            'authority': warehouse_user.authority_id,
-            'warehouse': warehouse2.pk,
-            'new_password1': '',
-            'new_password2': '',
-        })
-        assert response.status_code == 302
-        warehouse_user.refresh_from_db()
-        assert warehouse_user.warehouse_id == warehouse2.pk
-
-    def test_warehouse_staff_cannot_change_restricted_fields(self, client, warehouse_user, authority_admin):
-        """倉庫スタッフは権限・ユーザー名など制限フィールドを変更できない"""
-        client.force_login(warehouse_user)
-        url = reverse('user_update', kwargs={'pk': warehouse_user.pk})
-        original_username = warehouse_user.username
-        response = client.post(url, {
-            'username': 'hacked_name',
-            'user_gender': 2,
-            'authority': authority_admin.pk,
-            'warehouse': warehouse_user.warehouse_id,
-            'new_password1': '',
-            'new_password2': '',
-        })
-        assert response.status_code == 302
-        warehouse_user.refresh_from_db()
-        assert warehouse_user.username == original_username
-        assert warehouse_user.authority_id == 3  # 管理者に昇格していない
+        response = client.get(reverse('user_list'))
+        content = response.content.decode()
+        # テーブル内のマイページリンクは自分の行の1件のみ
+        assert content.count('btn-outline-primary">マイページ') == 1
 
 
 # ---------------------------------------------------------------------------
