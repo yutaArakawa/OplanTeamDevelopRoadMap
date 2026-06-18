@@ -56,7 +56,7 @@
             <th>性別</th>
             <th>権限</th>
             <th>所属</th>
-            <th>編集</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -86,6 +86,13 @@
             <td>{{ user.warehouse}}</td>
             {% endif %}
 
+            <!--操作-->
+            <td>
+                {% if user == request.user %}
+                <a href="{% url 'mypage' %}" class="btn btn-sm btn-outline-primary">マイページ</a>
+                {% endif %}
+            </td>
+        </tr>
         {% empty %}
             ユーザーが存在しません
         {% endfor %}
