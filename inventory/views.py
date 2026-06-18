@@ -13,7 +13,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import CreateView, TemplateView, UpdateView, ListView
+from django.views.generic import CreateView, DetailView, TemplateView, UpdateView, ListView
 from django.http import HttpResponse
 from common.mixins import AdminRequiredMixin, ShopStaffRequiredMixin, WarehouseStaffRequiredMixin
 
@@ -558,6 +558,20 @@ class RelationCreateView(AdminRequiredMixin, CreateView):
         response = super().form_valid(form)
         messages.success(self.request, '連携倉庫を登録しました。')
         return response
+
+
+class RelationConnectView(AdminRequiredMixin, View):
+    def post(self, request):
+        shop = get_object_or_404(Shop.active_objects, pk=request.POST.get('shop_id'))
+        warehouse = get_object_or_404(Warehouse.active_objects, pk=request.POST.get('warehouse_id'))
+
+        if Relation.active_objects.filter(shop=shop, warehouse=warehouse).exists():
+            messages.error(request, '既に連携済みの倉庫です。')
+        else:
+            Relation.objects.create(shop=shop, warehouse=warehouse)
+            messages.success(request, f'「{warehouse.warehouse_name}」と連携しました。')
+
+        return redirect(request.POST.get('next') or reverse('relation_list'))
 
 
 class RelationDeleteView(AdminRequiredMixin, View):
@@ -1146,3 +1160,43 @@ class WarehouseOrderPDFExportView(WarehouseStaffRequiredMixin, View):
             return redirect('warehouse_order_list')
     
     
+class ShopDetailView(AdminRequiredMixin, DetailView):
+    model = Shop
+    template_name = 'inventory/shop_detail.html'
+    context_object_name = 'shop'
+
+    def get_queryset(self):
+        return Shop.active_objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        shop = self.object
+
+        prefecture = self.request.GET.get('prefecture', '')
+        q = self.request.GET.get('q', '')
+        status = self.request.GET.get('status', '')
+
+        connected_relations = Relation.active_objects.filter(shop=shop).select_related('warehouse')
+        connected_warehouse_ids = connected_relations.values_list('warehouse_id', flat=True)
+        not_connected = Warehouse.active_objects.exclude(id__in=connected_warehouse_ids)
+
+        if prefecture:
+            connected_relations = connected_relations.filter(warehouse__prefecture=prefecture)
+            not_connected = not_connected.filter(prefecture=prefecture)
+
+        if q:
+            connected_relations = connected_relations.filter(warehouse__warehouse_name__icontains=q)
+            not_connected = not_connected.filter(warehouse_name__icontains=q)
+
+        if status == 'connected':
+            not_connected = Warehouse.active_objects.none()
+        elif status == 'not_connected':
+            connected_relations = Relation.active_objects.none()
+
+        context['connected_relations'] = connected_relations
+        context['not_connected_warehouses'] = not_connected
+        context['prefecture_choices'] = PREFECTURE_CHOICES
+        context['selected_prefecture'] = prefecture
+        context['selected_q'] = q
+        context['selected_status'] = status
+        return context
