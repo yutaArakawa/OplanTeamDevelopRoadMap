@@ -382,6 +382,37 @@ class TestOrderCsvImport:
         assert response.status_code == 302
         assert response.url == reverse('order_goods_list')
 
+    def test_exceeds_stock_shows_error_and_no_order_created(self, client, shop_user, goods, relation, warehouse_stock):
+        """在庫数を超える発注数の場合、エラーメッセージが表示されOrderが作成されない"""
+        # warehouse_stock.stock = 100 に対して 101 を発注
+        csv_file = self._make_csv_file([
+            [relation.warehouse.id, relation.warehouse.warehouse_name,
+             goods.goods_category.category_name, goods.id, goods.goods_name, 100, 101],
+        ])
+        client.force_login(shop_user)
+        response = client.post(reverse('order_csv_import'), {'csv_file': csv_file})
+        assert response.status_code == 302
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('在庫数を超える発注があるため' in str(m) for m in msgs)
+        assert not Order.objects.filter(relation=relation).exists()
+
+    def test_exceeds_stock_cancels_all_orders(self, client, shop_user, goods, goods_category, relation, warehouse_stock):
+        """一部の行が在庫超過の場合、超過していない行も含め全件発注されない"""
+        goods2 = Goods.objects.create(goods_name='テスト商品2', goods_category=goods_category)
+        WarehouseStock.objects.create(warehouse=relation.warehouse, goods=goods2, stock=50)
+        csv_file = self._make_csv_file([
+            # 正常行
+            [relation.warehouse.id, relation.warehouse.warehouse_name,
+             goods.goods_category.category_name, goods.id, goods.goods_name, 100, 5],
+            # 在庫超過行
+            [relation.warehouse.id, relation.warehouse.warehouse_name,
+             goods2.goods_category.category_name, goods2.id, goods2.goods_name, 50, 99],
+        ])
+        client.force_login(shop_user)
+        client.post(reverse('order_csv_import'), {'csv_file': csv_file})
+        # 正常行も含めてOrderが作成されていないことを確認
+        assert not Order.objects.filter(relation=relation).exists()
+
 
 # ---------------------------------------------------------------------------
 # 発注履歴画面
