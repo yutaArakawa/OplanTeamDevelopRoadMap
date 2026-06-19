@@ -937,17 +937,27 @@ def _get_filtered_orders(request):
     return qs
 
 
+_STATUS_TRANSITIONS = {
+    Order.Status.ORDERED:   [Order.Status.ORDERED,   Order.Status.PREPARING, Order.Status.CANCELED],
+    Order.Status.PREPARING: [Order.Status.PREPARING, Order.Status.SHIPPED,   Order.Status.CANCELED],
+    Order.Status.SHIPPED:   [Order.Status.SHIPPED,   Order.Status.DELIVERED, Order.Status.CANCELED],
+    Order.Status.DELIVERED: [Order.Status.DELIVERED, Order.Status.CANCELED],
+    Order.Status.CANCELED:  [Order.Status.CANCELED],
+}
+
+
 def _build_rows(orders):
     """テンプレート・CSV・PDF 共通のフラット行リストを生成する（rowspan 計算込み）。"""
     rows = []
     for order in orders:
         goods_list = order.active_order_goods
         count = len(goods_list)
+        available_statuses = _STATUS_TRANSITIONS.get(order.status, [])
         if count == 0:
-            rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1})
+            rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1, 'available_statuses': available_statuses})
         else:
             for i, og in enumerate(goods_list):
-                rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count})
+                rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count, 'available_statuses': available_statuses})
     return rows
 
 
