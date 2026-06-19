@@ -22,7 +22,7 @@ class HomeAPIView(View):
 
         if user.authority_id == AUTHORITY_ADMIN:
             data = {
-                'warehoues_count': Warehouse.active_objects.count(),
+                'warehouse_count': Warehouse.active_objects.count(),
                 'shop_count': Shop.active_objects.count(),
                 'goods_count': Goods.active_objects.count(),
                 'category_count': GoodsCategory.active_objects.count(),
