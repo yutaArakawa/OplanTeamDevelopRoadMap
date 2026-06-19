@@ -55,6 +55,7 @@ services:
       - web
     environment:
       - BASIC=${BASIC:-false}
+      - REACT_LOCATION=root /app/frontend/dist; try_files $uri /react/index.html;
     networks:
       - frontend_network
   
@@ -74,7 +75,7 @@ services:
 
   frontend:
     build: ./frontend
-    command: npm run dev
+    command: npm run build
     volumes:
       - ./frontend:/app
       - /app/node_modules

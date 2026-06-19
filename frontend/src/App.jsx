@@ -1,15 +1,26 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
+import LoginPage from './features/auth/LoginPage'
+import HomePage from './features/dashboard/HomePage'
+import UserListPage from './features/accounts/UserListPage'
+import Layout from './shared/components/Layout'
 
 function App() {
   return (
     <BrowserRouter basename="/react">
-      <div className="app">
-        <h1>Stock Management System（React）</h1>
-        <Routes>
-          <Route path="/" element={<div>ホームページ</div>} />
-          <Route path="/goods" element={<div>商品一覧（準備中）</div>} />
-        </Routes>
-      </div>
+      <Routes>
+
+        {/* ログイン画面 */}
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* 以降はヘッダーとサイドバーを使用する画面 */}
+        <Route element={<Layout><Outlet /></Layout>}>
+          {/* ホーム画面 */}
+          <Route path="/" element={<HomePage />} />
+          {/* ユーザー管理画面 */}
+          <Route path="/accounts/user/list" element={<UserListPage />} />
+        </Route>
+
+      </Routes>
     </BrowserRouter>
   )
 }

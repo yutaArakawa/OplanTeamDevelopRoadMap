@@ -55,6 +55,13 @@ services:
       - web
     environment:
       - BASIC=${BASIC:-false}
+      - >-
+        REACT_LOCATION=
+        proxy_pass http://frontend:5173;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $$http_host;
     networks:
       - frontend_network
   
