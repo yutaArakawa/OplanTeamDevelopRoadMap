@@ -183,6 +183,9 @@ CORS_ALLOWED_ORIGINS = [
 # クッキーや認証情報を含むリクエストを許可する設定
 CORS_ALLOW_CREDENTIALS = True
 
+# JavaScriptからCookieを読めるようにする
+CSRF_COOKIE_HTTPONLY = False
+
 REST_FRAMEWORK = {
     # API全体でセッション認証を使用する設定
     'DEFAULT_AUTHENTICATION_CLASSES': [
