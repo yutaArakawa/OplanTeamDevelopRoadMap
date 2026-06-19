@@ -722,7 +722,10 @@ class OrderCsvImportView(ShopStaffRequiredMixin, View):
             decoded_file = csv_file.read().decode('utf-8-sig').splitlines()
             reader = csv.DictReader(decoded_file)
 
-            orders = {}
+            valid_rows = []
+            stock_errors = []
+
+            # ─── フェーズ1: バリデーション（全行チェック、DBへの書き込みなし） ───
             for row in reader:
                 warehouse_id = row['倉庫ID'].strip()
                 goods_id = row['商品ID'].strip()
@@ -730,26 +733,60 @@ class OrderCsvImportView(ShopStaffRequiredMixin, View):
                 if not order_quantity_str:
                     continue
                 order_quantity = int(order_quantity_str)
-                if order_quantity > 0:
-                    warehouse = Warehouse.active_objects.filter(id=warehouse_id).first()
-                    goods = Goods.active_objects.filter(id=goods_id).first()
+                if order_quantity <= 0:
+                    continue
 
-                    if warehouse and goods:
-                        relation = Relation.active_objects.filter(
-                            shop=request.user.shop,
-                            warehouse=warehouse
-                        ).first()
-                        if relation:
-                            # 同一倉庫のOrderがすでに存在する場合は新たにOrderを作成せず、既存のOrderにOrderGoodsを追加する
-                            if relation.id not in orders:
-                                orders[relation.id] = Order.objects.create(relation=relation)
+                warehouse = Warehouse.active_objects.filter(id=warehouse_id).first()
+                goods = Goods.active_objects.filter(id=goods_id).first()
 
-                            order = orders[relation.id]
-                            OrderGoods.objects.create(
-                                order=order,
-                                goods=goods,
-                                quantity=order_quantity
-                            )
+                if not (warehouse and goods):
+                    continue
+
+                relation = Relation.active_objects.filter(
+                    shop=request.user.shop,
+                    warehouse=warehouse
+                ).first()
+                if not relation:
+                    continue
+
+                # 倉庫在庫数チェック
+                warehouse_stock = WarehouseStock.active_objects.filter(
+                    warehouse=warehouse, goods=goods
+                ).first()
+                stock = warehouse_stock.stock if warehouse_stock else 0
+                if order_quantity > stock:
+                    stock_errors.append(
+                        f'「{goods.goods_name}」（{warehouse.warehouse_name}）: '
+                        f'在庫数 {stock} に対して発注数 {order_quantity} は超過しています。'
+                    )
+                    continue
+
+                valid_rows.append({
+                    'relation': relation,
+                    'goods': goods,
+                    'quantity': order_quantity,
+                })
+
+            # 在庫超過エラーがあれば全件中断
+            if stock_errors:
+                for error_msg in stock_errors:
+                    messages.error(request, error_msg)
+                messages.error(request, '在庫数を超える発注があるため、全ての発注をキャンセルしました。CSVを修正して再度アップロードしてください。')
+                return redirect('order_goods_list')
+
+            # ─── フェーズ2: 発注作成（バリデーション通過後のみ） ───
+            orders = {}
+            for item in valid_rows:
+                relation = item['relation']
+                # 同一倉庫のOrderがすでに存在する場合は新たにOrderを作成せず、既存のOrderにOrderGoodsを追加する
+                if relation.id not in orders:
+                    orders[relation.id] = Order.objects.create(relation=relation)
+                OrderGoods.objects.create(
+                    order=orders[relation.id],
+                    goods=item['goods'],
+                    quantity=item['quantity'],
+                )
+
             messages.success(request, 'CSVファイルから発注を作成しました。')
         except Exception as e:
             messages.error(request, f'CSVファイルの処理中にエラーが発生しました: {str(e)}')
