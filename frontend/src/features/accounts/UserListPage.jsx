@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useAuth } from '../../shared/hooks/useAuth'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { getUserList } from "./accountsApi"
 import {
     AUTHORITY_ADMIN,
@@ -19,6 +19,16 @@ export default function UserListPage() {
     const [filterOptions, setFilterOptions] = useState({ authorities: [], shops: [], warehouses: [] })
     const [filters, setFilters] = useState({ authority: '', shop: '', warehouse: '' })
     const { userInfo } = useAuth()
+    const location = useLocation()
+    const navigate = useNavigate()
+    const [flashMessage, setFlashMessage] = useState(location.state?.message ?? null)
+
+    useEffect(() => {
+        if (location.state?.message) {
+            // リロード時に再表示されないよう state を消去
+            navigate(location.pathname, { replace: true, state: {} })
+        }
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         document.title = 'ユーザー管理 | 在庫管理システム'
@@ -66,6 +76,9 @@ export default function UserListPage() {
 
     return (
         <div>
+            {flashMessage && (
+                <div className="alert alert-success mb-3">{flashMessage}</div>
+            )}
             <div className="d-flex user-list-header">
                 <div className="row g-3 mb-3">
                     <div className="col-auto d-flex align-items-center gap-2">
@@ -120,7 +133,9 @@ export default function UserListPage() {
                     </div>
                 </div>
 
-                <Link to="#" className="btn btn-primary mb-5 ms-auto">新規作成</Link>
+                {userInfo?.authority === AUTHORITY_ADMIN && (
+                    <Link to="/accounts/user/create" className="btn btn-primary mb-5 ms-auto">新規作成</Link>
+                )}
 
             </div>
             <table className="table">
@@ -158,8 +173,8 @@ export default function UserListPage() {
                                 }</td>
                                 {
                                 userInfo?.authority === AUTHORITY_ADMIN &&
-                                /* 操作 */
-                                <td><Link to="#" className="btn btn-sm btn-outline-primary">編集</Link>
+                                <td>
+                                    <Link to={`/accounts/user/${user.id}/edit`} className="btn btn-sm btn-outline-primary">編集</Link>
                                 </td>}
                             </tr>
                         ))
