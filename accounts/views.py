@@ -1,4 +1,5 @@
 from django.shortcuts import redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.views import View
@@ -120,6 +121,7 @@ class UserDeleteView(LoginRequiredMixin, View):
         user.delete_flg = True
         user.save()
         
+        messages.success(request, 'ユーザーを削除しました。')
         return redirect('user_list')
 
     

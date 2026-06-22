@@ -95,10 +95,12 @@
             </button>
             {% if object %}
             <button
-                type="submit"
-                form="delete-form"
-                class="btn btn-outline-danger"
+                type="button"
+                class="btn btn-danger btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteModal"
                 {% if not can_delete %}disabled title="在庫情報・倉庫店舗連携・所属ユーザー・集計データに紐づく店舗は削除できません。"{% endif %}
+                data-delete-url="{{ shop.get_delete_url }}"
             >
                 削除
             </button>
