@@ -1044,32 +1044,37 @@ class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
             old_status = order.status
 
             # 在庫未減算の状態から発送済みになる時だけ引く
-            if (
-                old_status not in self.STOCK_DEDUCTED_STATUSES
-                and new_status_int == Order.Status.SHIPPED.value
-            ):
-                minus_stock(order)
+            try:
+                if (
+                    old_status not in self.STOCK_DEDUCTED_STATUSES
+                    and new_status_int == Order.Status.SHIPPED.value
+                ):
+                    minus_stock(order)
 
-            # 在庫減算済みの状態からキャンセルになる時は倉庫在庫を戻す
-            if (
-                old_status in self.STOCK_DEDUCTED_STATUSES
-                and new_status_int == Order.Status.CANCELED.value
-            ):
-                restore_stock(order)
+                # 在庫減算済みの状態からキャンセルになる時は倉庫在庫を戻す
+                if (
+                    old_status in self.STOCK_DEDUCTED_STATUSES
+                    and new_status_int == Order.Status.CANCELED.value
+                ):
+                    restore_stock(order)
 
-            # 発送済みから納品済みになる時に店舗在庫を追加する
-            if (
-                old_status == Order.Status.SHIPPED.value
-                and new_status_int == Order.Status.DELIVERED.value
-            ):
-                add_shop_stock(order)
+                # 発送済みから納品済みになる時に店舗在庫を追加する
+                if (
+                    old_status == Order.Status.SHIPPED.value
+                    and new_status_int == Order.Status.DELIVERED.value
+                ):
+                    add_shop_stock(order)
 
-            # 納品済みからキャンセルになる時に店舗在庫を引く
-            if (
-                old_status == Order.Status.DELIVERED.value
-                and new_status_int == Order.Status.CANCELED.value
-            ):
-                subtract_shop_stock(order)
+                # 納品済みからキャンセルになる時に店舗在庫を引く
+                if (
+                    old_status == Order.Status.DELIVERED.value
+                    and new_status_int == Order.Status.CANCELED.value
+                ):
+                    subtract_shop_stock(order)
+
+            except (WarehouseStock.DoesNotExist, ShopStock.DoesNotExist):
+                messages.error(request, "在庫データが存在しません。")
+                return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
             order.status = new_status_int
             order.save(update_fields=['status', 'updated_at'])

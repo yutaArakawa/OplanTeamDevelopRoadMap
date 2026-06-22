@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
@@ -98,15 +99,15 @@ def insert_initial_shop_stock_for_goods(goods, shops):
 
 
 # 倉庫スタッフユーザーが発送済みを選択した際、在庫数から発送数を引いて処理する関数
+@transaction.atomic
 def minus_stock(order):
 
     warehouse = order.relation.warehouse
 
-    order_goods_list = OrderGoods.objects.filter(order=order)
+    order_goods_list = OrderGoods.active_objects.filter(order=order)
 
     for order_goods in order_goods_list:
-
-        stock = WarehouseStock.objects.get(
+        stock = WarehouseStock.objects.select_for_update().get(
             warehouse=warehouse,
             goods=order_goods.goods
         )
@@ -116,15 +117,16 @@ def minus_stock(order):
 
 
 # 発送済みから準備中に戻した際、在庫数を元に戻す関数
+@transaction.atomic
 def restore_stock(order):
 
     warehouse = order.relation.warehouse
 
-    order_goods_list = OrderGoods.objects.filter(order=order)
+    order_goods_list = OrderGoods.active_objects.filter(order=order)
 
     for order_goods in order_goods_list:
 
-        stock = WarehouseStock.objects.get(
+        stock = WarehouseStock.objects.select_for_update().get(
             warehouse=warehouse,
             goods=order_goods.goods
         )
@@ -134,15 +136,16 @@ def restore_stock(order):
 
 
 # 納品済みになった際、店舗在庫に納品数を追加する関数
+@transaction.atomic
 def add_shop_stock(order):
 
     shop = order.relation.shop
 
-    order_goods_list = OrderGoods.objects.filter(order=order)
+    order_goods_list = OrderGoods.active_objects.filter(order=order)
 
     for order_goods in order_goods_list:
 
-        stock = ShopStock.objects.get(
+        stock = ShopStock.objects.select_for_update().get(
             shop=shop,
             goods=order_goods.goods
         )
@@ -152,15 +155,16 @@ def add_shop_stock(order):
 
 
 # 納品済みからキャンセルに戻した際、店舗在庫から納品数を引く関数
+@transaction.atomic
 def subtract_shop_stock(order):
 
     shop = order.relation.shop
 
-    order_goods_list = OrderGoods.objects.filter(order=order)
+    order_goods_list = OrderGoods.active_objects.filter(order=order)
 
     for order_goods in order_goods_list:
 
-        stock = ShopStock.objects.get(
+        stock = ShopStock.objects.select_for_update().get(
             shop=shop,
             goods=order_goods.goods
         )

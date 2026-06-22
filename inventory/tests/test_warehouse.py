@@ -3,7 +3,7 @@ import csv as csv_module
 import pytest
 from django.contrib.messages import get_messages
 from django.urls import reverse
-from inventory.models import GoodsCategory, Goods, Warehouse, WarehouseStock, Order, OrderGoods, Relation
+from inventory.models import GoodsCategory, Goods, Warehouse, WarehouseStock, Order, OrderGoods, Relation, ShopStock
 
 pytestmark = pytest.mark.django_db
 
@@ -461,6 +461,22 @@ def warehouse_order(db, relation, goods):
     OrderGoods.objects.create(order=o, goods=goods, quantity=5)
     return o
 
+@pytest.fixture
+def shop_stock(db, shop, goods):
+    return ShopStock.objects.create(shop=shop, goods=goods, stock=50)
+
+@pytest.fixture
+def shipped_order(db, relation, goods):
+    o = Order.objects.create(relation=relation, status=Order.Status.SHIPPED)
+    OrderGoods.objects.create(order=o, goods=goods, quantity=5)
+    return o
+
+@pytest.fixture
+def deliverd_order(db, relation, goods):
+    o = Order.objects.create(relation=relation, status=Order.Status.DELIVERED)
+    OrderGoods.objects.create(order=o, goods=goods, quantity=5)
+    return o
+
 
 # ---------------------------------------------------------------------------
 # 倉庫受注管理一覧
@@ -604,6 +620,68 @@ class TestWarehouseOrderStatusUpdate:
             {'status': Order.Status.PREPARING},
         )
         assert response.status_code == 404
+
+    def test_shipped_deducts_warehouse_stock(
+        self, client, warehouse_user, warehouse_order, warehouse_stock
+    ):
+        """発注済み→発送済みにすると倉庫在庫が減算される"""
+        client.force_login(warehouse_user)
+        client.post(
+            reverse('warehouse_order_status_update', kwargs={'pk': warehouse_order.pk}),
+            {'status': Order.Status.SHIPPED},
+        )
+        warehouse_stock.refresh_from_db()
+        assert warehouse_stock.stock == 95  # 100 - 5
+
+    def test_shipped_no_stock_record_shows_error(
+        self, client, warehouse_user, warehouse_order
+    ):
+        """在庫レコードなしで発送済みにするとエラーメッセージが出てステータスが変わらない"""
+        client.force_login(warehouse_user)
+        response = client.post(
+            reverse('warehouse_order_status_update', kwargs={'pk': warehouse_order.pk}),
+            {'status': Order.Status.SHIPPED},
+        )
+        msgs = list(get_messages(response.wsgi_request))
+        assert any('在庫データが存在しません' in str(m) for m in msgs)
+        warehouse_order.refresh_from_db()
+        assert warehouse_order.status == Order.Status.ORDERED
+
+    def test_cancel_from_shipped_restores_warehouse_stock(
+        self, client, warehouse_user, shipped_order, warehouse_stock
+    ):
+        """発送済み→キャンセルで倉庫在庫が元に戻る"""
+        client.force_login(warehouse_user)
+        client.post(
+            reverse('warehouse_order_status_update', kwargs={'pk': shipped_order.pk}),
+            {'status': Order.Status.CANCELED},
+        )
+        warehouse_stock.refresh_from_db()
+        assert warehouse_stock.stock == 105  # 100 + 5
+
+    def test_delivered_adds_shop_stock(
+        self, client, warehouse_user, shipped_order, shop_stock
+    ):
+        """発送済み→納品済みで店舗在庫が増える"""
+        client.force_login(warehouse_user)
+        client.post(
+            reverse('warehouse_order_status_update', kwargs={'pk': shipped_order.pk}),
+            {'status': Order.Status.DELIVERED},
+        )
+        shop_stock.refresh_from_db()
+        assert shop_stock.stock == 55  # 50 + 5
+
+    def test_cancel_from_delivered_subtracts_shop_stock(
+        self, client, warehouse_user, deliverd_order, shop_stock
+    ):
+        """納品済み→キャンセルで店舗在庫が減る"""
+        client.force_login(warehouse_user)
+        client.post(
+            reverse('warehouse_order_status_update', kwargs={'pk': deliverd_order.pk}),
+            {'status': Order.Status.CANCELED},
+        )
+        shop_stock.refresh_from_db()
+        assert shop_stock.stock == 45  # 50 - 5
 
 
 # ---------------------------------------------------------------------------
