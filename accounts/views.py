@@ -1,4 +1,5 @@
 from django.shortcuts import redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.views import View
@@ -25,8 +26,12 @@ class UserListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         if self.request.user.authority_id == AUTHORITY_ADMIN:
             qs = User.active_objects.all()
+        elif self.request.user.authority_id == AUTHORITY_SHOP:
+            qs = User.active_objects.filter(authority_id=AUTHORITY_SHOP, shop=self.request.user.shop)
+        elif self.request.user.authority_id == AUTHORITY_WAREHOUSE:
+            qs = User.active_objects.filter(authority_id=AUTHORITY_WAREHOUSE, warehouse=self.request.user.warehouse)
         else:
-            qs = User.active_objects.filter(authority_id=self.request.user.authority_id)
+            qs = User.active_objects.none()
 
         # 絞り込み - 権限
         sort_authority = self.request.GET.get('authority')
@@ -116,6 +121,7 @@ class UserDeleteView(LoginRequiredMixin, View):
         user.delete_flg = True
         user.save()
         
+        messages.success(request, 'ユーザーを削除しました。')
         return redirect('user_list')
 
     

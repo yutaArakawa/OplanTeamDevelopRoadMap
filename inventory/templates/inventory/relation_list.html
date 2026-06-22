@@ -75,6 +75,20 @@
                                 <div class="fw-semibold">{{ relation.warehouse.warehouse_name }}</div>
                                 <div class="small text-muted">{{ relation.warehouse.get_full_address }}</div>
                             </div>
+                            <form method="post" action="{% url 'relation_delete' relation.id %}" class="ms-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button
+                                    type="button"
+                                    class="btn btn-danger btn-sm"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteModal"
+                                    {% if relation.has_related_records %}disabled title="発注または問い合わせに紐づく連携情報は削除できません。"{% endif %}
+                                    data-delete-url="{{ relation.get_delete_url }}"
+                                >
+                                    削除
+                                </button>
+                            </form>
                         </div>
                         {% empty %}
                         <span class="text-muted">連携倉庫はありません</span>

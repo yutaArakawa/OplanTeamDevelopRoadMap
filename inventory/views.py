@@ -595,7 +595,7 @@ class OrderGoodsListView(ShopStaffRequiredMixin, ListView):
 
     def get_queryset(self):
         # 連携倉庫の在庫合計を併せて取得
-        related_warehouse_ids = Relation.objects.filter(
+        related_warehouse_ids = Relation.active_objects.filter(
             shop=self.request.user.shop
         ).values_list('warehouse_id', flat=True)
 
@@ -614,7 +614,7 @@ class OrderGoodsListView(ShopStaffRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         # ログインユーザーの店舗と連携している倉庫IDを取得
-        related_warehouse_ids = Relation.objects.filter(
+        related_warehouse_ids = Relation.active_objects.filter(
             shop=self.request.user.shop
         ).values_list('warehouse_id', flat=True)
 
@@ -686,7 +686,7 @@ class OrderCreateView(ShopStaffRequiredMixin, TemplateView):
 class OrderCsvDownloadView(ShopStaffRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         try:
-            related_warehouse_ids = Relation.objects.filter(
+            related_warehouse_ids = Relation.active_objects.filter(
                 shop=self.request.user.shop
             ).values_list('warehouse_id', flat=True)
 
