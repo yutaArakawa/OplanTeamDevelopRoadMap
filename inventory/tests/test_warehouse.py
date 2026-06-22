@@ -672,7 +672,7 @@ class TestWarehouseOrderStatusUpdate:
         assert shop_stock.stock == 55  # 50 + 5
 
     def test_cancel_from_delivered_subtracts_shop_stock(
-        self, client, warehouse_user, deliverd_order, shop_stock
+        self, client, warehouse_user, deliverd_order, shop_stock, warehouse_stock
     ):
         """納品済み→キャンセルで店舗在庫が減る"""
         client.force_login(warehouse_user)
