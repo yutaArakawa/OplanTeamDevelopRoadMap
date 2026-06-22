@@ -18,7 +18,7 @@
 
         <div class="mb-3">
             <label class="form-label">
-                店舗名
+                店舗名 <span class="text-danger">*</span>
             </label>
             {{ form.shop_name }}
             {% if form.shop_name.errors %}
@@ -30,7 +30,7 @@
 
         <div class="mb-3">
             <label class="form-label">
-                都道府県
+                都道府県 <span class="text-danger">*</span>
             </label>
             <div class="position-relative">
                 <div class="d-flex gap-1">
@@ -55,7 +55,7 @@
 
         <div class="mb-3">
             <label class="form-label">
-                市区町村
+                市区町村 <span class="text-danger">*</span>
             </label>
             {{ form.city }}
             {% if form.city.errors %}
@@ -67,7 +67,7 @@
 
         <div class="mb-3">
             <label class="form-label">
-                町名・番地
+                町名・番地 <span class="text-danger">*</span>
             </label>
             {{ form.address1 }}
             {% if form.address1.errors %}

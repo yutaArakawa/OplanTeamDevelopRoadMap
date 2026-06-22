@@ -21,7 +21,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">
-                            商品名
+                            商品名 <span class="text-danger">*</span>
                         </label>
                         {{ form.goods_name }}
                         {% if form.goods_name.errors %}
@@ -33,7 +33,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">
-                            カテゴリ
+                            カテゴリ <span class="text-danger">*</span>
                         </label>
                         {{ form.goods_category }}
                         {% if form.goods_category.errors %}
