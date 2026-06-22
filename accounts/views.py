@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 from accounts.models import User, Authority
 from inventory.models import Shop, Warehouse
 from common.constants import (AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE)
+from common.mixins import AdminRequiredMixin
 from .forms import LoginForm, UserCreateForm, UserUpdateForm , MyPageForm
 
 # Create your views here.
@@ -84,7 +85,7 @@ class UserCreateView(LoginRequiredMixin, CreateView):
         kwargs['user'] = self.request.user
         return kwargs
     
-class UserUpdateView(LoginRequiredMixin, UpdateView):
+class UserUpdateView(AdminRequiredMixin, UpdateView):
     template_name = 'accounts/user_update.html'
     model = User
     form_class = UserUpdateForm
