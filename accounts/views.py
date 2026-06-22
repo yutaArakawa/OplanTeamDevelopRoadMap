@@ -1,7 +1,7 @@
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LoginView
 from django.views import View
 from django.views.generic import ListView, CreateView, UpdateView
 from django.urls import reverse_lazy
@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 from accounts.models import User, Authority
 from inventory.models import Shop, Warehouse
 from common.constants import (AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE)
-from .forms import LoginForm, UserCreateForm, MyPageForm
+from .forms import LoginForm, UserCreateForm, UserUpdateForm , MyPageForm
 
 # Create your views here.
 
@@ -83,6 +83,25 @@ class UserCreateView(LoginRequiredMixin, CreateView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
+    
+class UserUpdateView(LoginRequiredMixin, UpdateView):
+    template_name = 'accounts/user_update.html'
+    model = User
+    form_class = UserUpdateForm
+    success_url = reverse_lazy('user_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['user_authority_id'] = self.request.user.authority_id
+        context['AUTHORITY_ADMIN'] = AUTHORITY_ADMIN
+        context['AUTHORITY_SHOP'] = AUTHORITY_SHOP
+        context['AUTHORITY_WAREHOUSE'] = AUTHORITY_WAREHOUSE
+        return context
 
 
 class MyPageView(LoginRequiredMixin, UpdateView):
@@ -111,7 +130,7 @@ class UserDeleteView(LoginRequiredMixin, View):
         )
 
         if user == request.user:
-            return redirect('mypage')
+            return redirect('user_update', pk=user.pk)
         user.delete_flg = True
         user.save()
         

@@ -90,6 +90,8 @@
             <td>
                 {% if user == request.user %}
                 <a href="{% url 'mypage' %}" class="btn btn-sm btn-outline-primary">マイページ</a>
+                {% elif request.user.authority_id == AUTHORITY_ADMIN %}
+                <a href="{% url 'user_update' user.pk %}" class="btn btn-sm btn-outline-secondary">編集</a>
                 {% endif %}
             </td>
         </tr>

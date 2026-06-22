@@ -1,6 +1,6 @@
 from django.urls import path
 from django.contrib.auth.views import LoginView, LogoutView
-from .views import UserLoginView, UserListView, UserCreateView, UserDeleteView, MyPageView
+from .views import UserLoginView, UserListView, UserCreateView, UserUpdateView , UserDeleteView, MyPageView
 
 urlpatterns = [
     path(
@@ -27,6 +27,12 @@ urlpatterns = [
         'user/list/',
         UserListView.as_view(),
         name='user_list'
+    ),
+
+    path(
+        'user/update/<int:pk>/',
+        UserUpdateView.as_view(),
+        name='user_update'
     ),
 
     path(
