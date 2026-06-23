@@ -32,7 +32,20 @@
             <label class="form-label">
                 都道府県
             </label>
-            {{ form.prefecture }}
+            <div class="position-relative">
+                <div class="d-flex gap-1">
+                    <input
+                        type="text"
+                        id="prefecture-name-input"
+                        name="prefecture"
+                        class="form-control"
+                        placeholder="都道府県を入力"
+                        value="{{ form.prefecture.value|default:'' }}"
+                        autocomplete="off"
+                    >
+                </div>
+                <ul id="prefecture-name-dropdown" class="list-group position-absolute w-100" style="z-index: 1000;"></ul>
+            </div>
             {% if form.prefecture.errors %}
             <div class="text-danger">
                 {{ form.prefecture.errors }}

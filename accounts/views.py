@@ -27,8 +27,12 @@ class UserListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         if self.request.user.authority_id == AUTHORITY_ADMIN:
             qs = User.active_objects.all()
+        elif self.request.user.authority_id == AUTHORITY_SHOP:
+            qs = User.active_objects.filter(authority_id=AUTHORITY_SHOP, shop=self.request.user.shop)
+        elif self.request.user.authority_id == AUTHORITY_WAREHOUSE:
+            qs = User.active_objects.filter(authority_id=AUTHORITY_WAREHOUSE, warehouse=self.request.user.warehouse)
         else:
-            qs = User.active_objects.filter(authority_id=self.request.user.authority_id)
+            qs = User.active_objects.none()
 
         # 絞り込み - 権限
         sort_authority = self.request.GET.get('authority')
