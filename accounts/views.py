@@ -1,7 +1,7 @@
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import LoginView
 from django.views import View
 from django.views.generic import ListView, CreateView, UpdateView
 from django.urls import reverse_lazy
@@ -9,7 +9,8 @@ from urllib.parse import urlencode
 from accounts.models import User, Authority
 from inventory.models import Shop, Warehouse
 from common.constants import (AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE)
-from .forms import LoginForm, UserCreateForm, UserUpdateForm
+from common.mixins import AdminRequiredMixin
+from .forms import LoginForm, UserCreateForm, UserUpdateForm , MyPageForm
 
 # Create your views here.
 
@@ -87,8 +88,8 @@ class UserCreateView(LoginRequiredMixin, CreateView):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
-
-class UserUpdateView(LoginRequiredMixin, UpdateView):
+    
+class UserUpdateView(AdminRequiredMixin, UpdateView):
     template_name = 'accounts/user_update.html'
     model = User
     form_class = UserUpdateForm
@@ -101,12 +102,29 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         context['user_authority_id'] = self.request.user.authority_id
         context['AUTHORITY_ADMIN'] = AUTHORITY_ADMIN
         context['AUTHORITY_SHOP'] = AUTHORITY_SHOP
         context['AUTHORITY_WAREHOUSE'] = AUTHORITY_WAREHOUSE
         return context
+
+
+class MyPageView(LoginRequiredMixin, UpdateView):
+    template_name = 'accounts/mypage.html'
+    model = User
+    form_class = MyPageForm
+    success_url = reverse_lazy('mypage')
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def form_valid(self, form):
+        form.save()
+        if form.cleaned_data.get('new_password1'):
+            return redirect('login')
+        messages.success(self.request, 'プロフィールを更新しました。')
+        return redirect('mypage')
+
 
 class UserDeleteView(LoginRequiredMixin, View):
 

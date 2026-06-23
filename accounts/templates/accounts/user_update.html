@@ -114,12 +114,7 @@
                 戻る
             </a>
             {% if user_authority_id == AUTHORITY_ADMIN %}
-            <button
-                type="button"
-                class="btn btn-danger btn-sm"
-                data-bs-toggle="modal"
-                data-bs-target="#deleteModal"
-                data-delete-url="{{ user.get_delete_url }}"
+            <buttontype="button"class="btn btn-danger btn-sm"data-bs-toggle="modal"data-bs-target="#deleteModal"data-delete-url="{{ user.get_delete_url }}"
             >
                 削除
             </button>
