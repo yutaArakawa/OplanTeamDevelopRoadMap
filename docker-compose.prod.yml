@@ -68,6 +68,7 @@ services:
       - .env
     volumes:
       - .:/app
+      - ./backup:/app/backup
     depends_on:
       - db
     environment:
