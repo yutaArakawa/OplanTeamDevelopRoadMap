@@ -1,43 +1,82 @@
 services:
   web:
+    platform: linux/x86_64
     build: .
-    command: bash /app/entrypoint.sh
+    command: bash -c "/app/entrypoint.sh && exec gunicorn config.wsgi:application --bind 0.0.0.0:8000 --reload"
+    env_file:
+      - .env
     volumes:
       - .:/app
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - backend_network
+      - frontend_network
 
   db:
+    platform: linux/x86_64
     image: mysql:8.0
     restart: always
+    env_file:
+      - .env
     environment:
-      MYSQL_DATABASE: stockdb
-      MYSQL_USER: stockuser
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ${DATABASES_NAME}
+      MYSQL_USER: ${DATABASES_USER}
+      MYSQL_PASSWORD: ${DATABASES_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
+    networks:
+      - backend_network
+  
+  nginx:
+    platform: linux/x86_64
+    build:
+      context: ./nginx/
+      dockerfile: Dockerfile
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx/conf:/etc/nginx/temp
+      - ./static:/app/static
+      - ./media:/app/media
+    depends_on:
+      - web
+    environment:
+      - BASIC=${BASIC:-false}
+      - STATIC_DIR=/app/static/
+      - STATIC_CACHE_CONTROL=no-cache, must-revalidate
+    networks:
+      - frontend_network
   
   cron:
     build: .
     command: cron -f
+    env_file:
+      - .env
     volumes:
       - .:/app
     depends_on:
       - db
     environment:
       - TZ=Asia/Tokyo
+    networks:
+      - backend_network
 
 volumes:
   mysql_data:
+
+networks:
+  frontend_network:
+  backend_network:

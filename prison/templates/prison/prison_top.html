@@ -1,0 +1,20 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prison</title>
+    <link rel="stylesheet" href="{% static 'prison/css/prison_top.css' %}">
+</head>
+<body class="prison-top-body">
+    {% if request.GET.cleared %}
+    <img src="{% static 'prison/img/datsugoku-omedetou.png' %}">
+    {% else %}
+    <img src="{% static 'prison/img/oplove_logo.jpg' %}">
+    {% endif %}
+    <a href="{% url 'login' %}" class="prison-top-back-btn">← RETURN</a>
+    <a href="{% url 'prison_escape' %}" class="escape-prison-btn" id="escape-link">PRISON BREAK! →</a>
+    <script src="{% static 'prison/js/prison_top.js' %}"></script>
+</body>
+</html>

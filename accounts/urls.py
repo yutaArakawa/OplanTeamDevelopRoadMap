@@ -1,6 +1,6 @@
 from django.urls import path
 from django.contrib.auth.views import LoginView, LogoutView
-from .views import UserLoginView, UserListView, UserCreateView, UserUpdateView, UserDeleteView
+from .views import UserLoginView, UserListView, UserCreateView, UserUpdateView , UserDeleteView, MyPageView
 
 urlpatterns = [
     path(
@@ -18,21 +18,27 @@ urlpatterns = [
     ),
 
     path(
+        'mypage/',
+        MyPageView.as_view(),
+        name='mypage'
+    ),
+
+    path(
         'user/list/',
         UserListView.as_view(),
         name='user_list'
     ),
 
     path(
-        'user/create/',
-        UserCreateView.as_view(),
-        name='user_create'
-    ),
-
-    path(
         'user/update/<int:pk>/',
         UserUpdateView.as_view(),
         name='user_update'
+    ),
+
+    path(
+        'user/create/',
+        UserCreateView.as_view(),
+        name='user_create'
     ),
 
     path(

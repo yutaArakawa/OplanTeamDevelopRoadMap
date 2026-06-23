@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 from .constants.prefectures import PREFECTURE_CHOICES
 
 # Create your models here.
@@ -81,6 +82,9 @@ class Warehouse(BaseModel):
     def __str__(self):
         return self.warehouse_name
 
+    def get_delete_url(self):
+        return reverse('warehouse_delete', kwargs={'pk': self.pk})
+
 class Shop(BaseModel):
     shop_name = models.CharField(max_length=255)
     prefecture = models.CharField(max_length=10,choices=PREFECTURE_CHOICES)
@@ -137,6 +141,9 @@ class Shop(BaseModel):
     def __str__(self):
         return self.shop_name
 
+    def get_delete_url(self):
+        return reverse('shop_delete', kwargs={'pk': self.pk})
+
 class GoodsCategory(BaseModel):
     category_name = models.CharField(max_length=255)
     delete_flg = models.BooleanField(default=False)
@@ -175,6 +182,9 @@ class GoodsCategory(BaseModel):
 
     def __str__(self):
         return self.category_name
+
+    def get_delete_url(self):
+        return reverse('goods_category_delete', kwargs={'pk': self.pk})
 
 class Goods(BaseModel):
     goods_name = models.CharField(max_length=255)
@@ -220,6 +230,9 @@ class Goods(BaseModel):
 
     def __str__(self):
         return self.goods_name
+
+    def get_delete_url(self):
+        return reverse('goods_delete', kwargs={'pk': self.pk})
 
 class ShopStock(BaseModel):
     shop = models.ForeignKey(
@@ -305,6 +318,9 @@ class Relation(BaseModel):
 
     def __str__(self):
         return f'{self.warehouse} - {self.shop}'
+
+    def get_delete_url(self):
+        return reverse('relation_delete', kwargs={'pk': self.pk})
 
 class Order(BaseModel):
 

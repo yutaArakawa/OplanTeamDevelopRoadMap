@@ -35,15 +35,18 @@
 ```bash
 # リポジトリをクローン
 git clone <repository-url>
-cd python_stock_app
+cd OplanTeamDevelopRoadMap
 
-# Docker コンテナを起動
-docker compose up -d
+# .env ファイルを作成（値はチームメンバーから入手）
+cp .env.example .env
+
+# Docker コンテナを起動（開発環境）
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 **アクセス:**
-- Web アプリ: http://localhost:8000
-- MySQL: localhost:3307（ユーザー: stockuser, パスワード: password）
+- Web アプリ: http://localhost（ポート80）
+- MySQL: localhost:3307
 
 ---
 
@@ -51,17 +54,19 @@ docker compose up -d
 
 ### コンテナの起動・停止
 
-```bash
-# 起動
-docker compose up -d
+docker composeコマンドには必ず `-f docker-compose.dev.yml`（開発）または `-f docker-compose.prod.yml`（本番）を指定してください。
 
-# 停止
-docker compose down
+```bash
+# 起動（開発環境）
+docker compose -f docker-compose.dev.yml up -d
+
+# 停止（開発環境）
+docker compose -f docker-compose.dev.yml down
 
 # ログ確認
-docker compose logs -f web     # Webアプリケーション
-docker compose logs -f cron    # 定時バッチ
-docker compose logs -f db      # データベース
+docker compose -f docker-compose.dev.yml logs -f web     # Webアプリケーション
+docker compose -f docker-compose.dev.yml logs -f cron    # 定時バッチ
+docker compose -f docker-compose.dev.yml logs -f db      # データベース
 ```
 
 ### ローカル開発（Docker 不使用）
@@ -77,17 +82,16 @@ CI=true python manage.py migrate
 CI=true python manage.py runserver
 ```
 
-### スーパーユーザー作成
+### 初期データとスーパーユーザーの自動作成
 
-```bash
-# Docker コンテナ内の場合
-docker compose exec web python manage.py createsuperuser
+コンテナ起動時（`up`）に `entrypoint.sh` が `seed_master` コマンドを自動実行します。
 
-# ローカル開発の場合
-CI=true python manage.py createsuperuser
-```
+| 処理 | 対象テーブル | 内容 |
+|------|------------|------|
+| Authorityマスタ投入 | `accounts_authority` | 管理者（id=1）・店舗スタッフ（id=2）・倉庫スタッフ（id=3）を作成（既存はスキップ） |
+| スーパーユーザー作成 | `accounts_user` | ユーザー名 `admin`・パスワード `password` で作成（既存はスキップ） |
 
-**注意**: スーパーユーザー作成には `Authority` テーブルに `id=1` が存在する必要があります（初期化済み）。
+手動で `createsuperuser` を実行する必要はありません。
 
 ---
 
@@ -239,8 +243,8 @@ EOF'
 #    batch/crontab 行 9 を編集（例: 0 23 * * * → 0 14 * * *）
 
 # 2. コンテナを再ビルド・起動
-docker compose down
-docker compose up -d --build
+docker compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml up -d --build
 
 # 3. 修正確認
 docker compose exec cron cat /etc/cron.d/app-cron
@@ -276,22 +280,24 @@ CI=true python manage.py migrate
 
 ### MySQL コンテナにアクセス
 
+接続情報は `.env` の `DATABASES_USER`・`DATABASES_PASSWORD`・`DATABASES_NAME` を参照してください。
+
 ```bash
 # MySQL コマンドラインでアクセス
-docker compose exec db mysql -u stockuser -ppassword stockdb
+docker compose exec db mysql -u <DATABASES_USER> -p<DATABASES_PASSWORD> <DATABASES_NAME>
 
 # SQL クエリ実行例
-docker compose exec db mysql -u stockuser -ppassword stockdb -e "SELECT * FROM inventory_goods LIMIT 5;"
+docker compose exec db mysql -u <DATABASES_USER> -p<DATABASES_PASSWORD> <DATABASES_NAME> -e "SELECT * FROM inventory_goods LIMIT 5;"
 ```
 
 ### データベースリセット
 
 ```bash
 # すべてのコンテナを停止・削除
-docker compose down -v
+docker compose -f docker-compose.dev.yml down -v
 
 # コンテナを再起動（フレッシュデータベースで開始）
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 **注意:** `-v` フラグはボリューム（MySQL データ）を削除します。本番環境では実行しないでください。
@@ -304,25 +310,25 @@ docker compose up -d
 
 ```bash
 # ポート確認・終了
-lsof -i :8000      # ポート 8000 のプロセス確認
+lsof -i :80        # ポート 80 のプロセス確認
 kill -9 <PID>      # プロセス終了
 
 # または Docker を再起動
-docker compose down
-docker compose up -d
+docker compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 ### データベース接続エラー
 
 ```bash
 # データベースがヘルシーか確認
-docker compose ps    # "healthy" ステータスを確認
+docker compose -f docker-compose.dev.yml ps    # "healthy" ステータスを確認
 
 # コンテナのログ確認
-docker compose logs db
+docker compose -f docker-compose.dev.yml logs db
 
 # 起動まで待機
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 sleep 10
 docker compose exec web python manage.py migrate
 ```
@@ -360,13 +366,16 @@ docker compose exec cron cat /var/log/cron.log
 
 ### 環境変数設定
 
-以下の環境変数を本番環境に設定してください：
+`.env.example` をコピーして `.env` を作成し、本番用の値を設定してください：
 
 ```bash
 DEBUG=False
 ALLOWED_HOSTS=<本番ドメイン>
 SECRET_KEY=<セキュアなシークレットキー>
-DATABASE_URL=mysql://<ユーザー>:<パスワード>@<ホスト>:3306/<DB名>
+DATABASES_NAME=<DB名>
+DATABASES_USER=<ユーザー>
+DATABASES_PASSWORD=<パスワード>
+MYSQL_ROOT_PASSWORD=<rootパスワード>
 ```
 
 ### Docker イメージビルド・デプロイ
@@ -381,7 +390,7 @@ docker push <レジストリ>/python_stock_app:latest
 
 # 本番サーバーでデプロイ
 docker pull <レジストリ>/python_stock_app:latest
-docker compose up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### crontab スケジュール確認
@@ -395,6 +404,17 @@ docker compose exec cron cat /etc/cron.d/app-cron
 
 ---
 
+## 🔐 Hidden Content
+
+このシステムには隠されたコンテンツが存在します。
+
+**Hint:**
+1. ログイン画面の片隅に、ひっそりと潜むリンクがある
+2. その先のページで、右下の暗がりにカーソルを忍ばせてみよう
+3. あとは... 脱獄しろ
+
+---
+
 ## ライセンス
 
 プロプライエタリ - 内部利用のみ
@@ -405,8 +425,8 @@ docker compose exec cron cat /etc/cron.d/app-cron
 
 問題が発生した場合は、以下を確認してください：
 
-1. **ログの確認** — `docker compose logs -f`
-2. **コンテナの状態** — `docker compose ps`
+1. **ログの確認** — `docker compose -f docker-compose.dev.yml logs -f`
+2. **コンテナの状態** — `docker compose -f docker-compose.dev.yml ps`
 3. **アーキテクチャドキュメント** — `CLAUDE.md`
 4. **テストの実行** — `docker compose exec -e CI=true web pytest -v`
 
