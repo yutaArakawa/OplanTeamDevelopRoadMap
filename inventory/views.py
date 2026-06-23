@@ -16,6 +16,7 @@ from django.views import View
 from django.views.generic import CreateView, TemplateView, UpdateView, ListView
 from django.http import HttpResponse
 from common.mixins import AdminRequiredMixin, ShopStaffRequiredMixin, WarehouseStaffRequiredMixin
+from .services import minus_stock, restore_stock, add_shop_stock, subtract_shop_stock
 
 from inventory.forms import (
     GoodsCategoryForm,
@@ -973,17 +974,27 @@ def _get_filtered_orders(request):
     return qs
 
 
+_STATUS_TRANSITIONS = {
+    Order.Status.ORDERED:   [Order.Status.ORDERED,   Order.Status.PREPARING, Order.Status.CANCELED],
+    Order.Status.PREPARING: [Order.Status.PREPARING, Order.Status.SHIPPED,   Order.Status.CANCELED],
+    Order.Status.SHIPPED:   [Order.Status.SHIPPED,   Order.Status.DELIVERED, Order.Status.CANCELED],
+    Order.Status.DELIVERED: [Order.Status.DELIVERED, Order.Status.CANCELED],
+    Order.Status.CANCELED:  [Order.Status.CANCELED],
+}
+
+
 def _build_rows(orders):
     """テンプレート・CSV・PDF 共通のフラット行リストを生成する（rowspan 計算込み）。"""
     rows = []
     for order in orders:
         goods_list = order.active_order_goods
         count = len(goods_list)
+        available_statuses = _STATUS_TRANSITIONS.get(order.status, [])
         if count == 0:
-            rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1})
+            rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1, 'available_statuses': available_statuses})
         else:
             for i, og in enumerate(goods_list):
-                rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count})
+                rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count, 'available_statuses': available_statuses})
     return rows
 
 
@@ -1003,27 +1014,72 @@ class WarehouseOrderListView(WarehouseStaffRequiredMixin, TemplateView):
 
 class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
 
-    ALLOWED_STATUSES = {Order.Status.ORDERED.value, Order.Status.PREPARING.value}
+    ALLOWED_STATUSES = {Order.Status.ORDERED.value,
+                        Order.Status.PREPARING.value,
+                        Order.Status.SHIPPED.value,
+                        Order.Status.DELIVERED.value,
+                        Order.Status.CANCELED.value,}
+
+    STOCK_DEDUCTED_STATUSES = {
+        Order.Status.SHIPPED.value,
+        Order.Status.DELIVERED.value,
+    }
 
     def post(self, request, pk):
-        order = get_object_or_404(
-            Order.active_objects,
-            pk=pk,
-            relation__warehouse=request.user.warehouse,
-        )
-        new_status = request.POST.get('status', '').strip()
-        try:
-            new_status_int = int(new_status)
-            if new_status_int not in self.ALLOWED_STATUSES:
-                raise ValueError
-        except (ValueError, TypeError):
-            messages.error(request, '無効なステータスです。')
-            return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+        with transaction.atomic():
+            order = get_object_or_404(
+                Order.active_objects.select_for_update(),
+                pk=pk,
+                relation__warehouse=request.user.warehouse,
+            )
+            new_status = request.POST.get('status', '').strip()
+            try:
+                new_status_int = int(new_status)
+                if new_status_int not in self.ALLOWED_STATUSES:
+                    raise ValueError
+            except (ValueError, TypeError):
+                messages.error(request, '無効なステータスです。')
+                return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
-        order.status = new_status_int
-        order.save(update_fields=['status', 'updated_at'])
-        messages.success(request, 'ステータスを更新しました。')
-        return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+            old_status = order.status
+
+            # 在庫未減算の状態から発送済みになる時だけ引く
+            try:
+                if (
+                    old_status not in self.STOCK_DEDUCTED_STATUSES
+                    and new_status_int == Order.Status.SHIPPED.value
+                ):
+                    minus_stock(order)
+
+                # 在庫減算済みの状態からキャンセルになる時は倉庫在庫を戻す
+                if (
+                    old_status in self.STOCK_DEDUCTED_STATUSES
+                    and new_status_int == Order.Status.CANCELED.value
+                ):
+                    restore_stock(order)
+
+                # 発送済みから納品済みになる時に店舗在庫を追加する
+                if (
+                    old_status == Order.Status.SHIPPED.value
+                    and new_status_int == Order.Status.DELIVERED.value
+                ):
+                    add_shop_stock(order)
+
+                # 納品済みからキャンセルになる時に店舗在庫を引く
+                if (
+                    old_status == Order.Status.DELIVERED.value
+                    and new_status_int == Order.Status.CANCELED.value
+                ):
+                    subtract_shop_stock(order)
+
+            except (WarehouseStock.DoesNotExist, ShopStock.DoesNotExist):
+                messages.error(request, "在庫データが存在しません。")
+                return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+
+            order.status = new_status_int
+            order.save(update_fields=['status', 'updated_at'])
+            messages.success(request, 'ステータスを更新しました。')
+            return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
 
 class WarehouseOrderCSVExportView(WarehouseStaffRequiredMixin, View):

@@ -99,13 +99,10 @@
               {% csrf_token %}
               <input type="hidden" name="next" value="{{ request.get_full_path }}">
               <select name="status" class="form-select form-select-sm select-min-width">
-                {% for value, label in status_choices %}
-                {% if value == 0 or value == 1 %}
-                <option value="{{ value }}"
-                  {% if row.order.status == value %}selected{% endif %}>
-                  {{ label }}
-                </option>
-                {% endif %}
+                {% for status in row.available_statuses %}
+                  <option value="{{ status.value }}" {% if row.order.status == status.value %}selected{% endif %}>
+                    {{ status.label }}
+                  </option>
                 {% endfor %}
               </select>
               <button type="submit" class="btn btn-sm btn-primary text-nowrap">更新</button>
