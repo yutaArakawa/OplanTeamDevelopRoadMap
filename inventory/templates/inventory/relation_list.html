@@ -58,6 +58,7 @@
                 <tr>
                     <th class="col-width-third">店舗</th>
                     <th>連携倉庫</th>
+                    <th class="text-center">店舗詳細</th>
                 </tr>
             </thead>
             <tbody>
@@ -92,6 +93,9 @@
                         {% empty %}
                         <span class="text-muted">連携倉庫はありません</span>
                         {% endfor %}
+                    </td>
+                    <td class="text-center">
+                        <a href="{% url 'shop_detail' shop.id %}" class="btn btn-outline-success">詳細</a>
                     </td>
                 </tr>
                 {% empty %}
