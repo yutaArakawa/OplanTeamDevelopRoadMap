@@ -20,14 +20,27 @@
     <div class="card-body">
         <form method="get" class="row g-3 align-items-end">
             <div class="col-md-6">
-                <label for="prefecture" class="form-label">都道府県</label>
-                <select id="prefecture" name="prefecture" class="form-select">
-                    <option value="">すべて</option>
-                    {% for value, label in prefecture_choices %}
-                    <option value="{{ value }}" {% if selected_prefecture == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
+                <label for="prefecture" class="form-label">
+                    都道府県
+                </label>
+                <div class="d-flex gap-1">
+                    <input
+                        type="text"
+                        id="prefecture-name-input"
+                        name="prefecture"
+                        class="form-control"
+                        placeholder="都道府県を入力"
+                        value="{{ form.prefecture.value|default:'' }}"
+                        autocomplete="off"
+                    >
+                </div>
+                <ul id="prefecture-name-dropdown" class="list-group position-absolute w-100" style="z-index: 1000;"></ul>
             </div>
+            {% if form.prefecture.errors %}
+            <div class="text-danger">
+                {{ form.prefecture.errors }}
+            </div>
+            {% endif %}
             <div class="col-auto">
                 <button type="submit" class="btn btn-outline-primary">絞り込む</button>
             </div>
