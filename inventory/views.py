@@ -13,9 +13,10 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import CreateView, TemplateView, UpdateView, ListView
+from django.views.generic import CreateView, DetailView, TemplateView, UpdateView, ListView
 from django.http import HttpResponse
 from common.mixins import AdminRequiredMixin, ShopStaffRequiredMixin, WarehouseStaffRequiredMixin
+from .services import minus_stock, restore_stock, add_shop_stock, subtract_shop_stock
 
 from inventory.forms import (
     GoodsCategoryForm,
@@ -530,7 +531,6 @@ class RelationListView(AdminRequiredMixin, TemplateView):
         )
         return context
 
-
 class ShopConnectedWarehouseListView(ShopStaffRequiredMixin, TemplateView):
     template_name = 'inventory/shop_connected_warehouse_list.html'
 
@@ -561,6 +561,20 @@ class RelationCreateView(AdminRequiredMixin, CreateView):
         return response
 
 
+class RelationConnectView(AdminRequiredMixin, View):
+    def post(self, request):
+        shop = get_object_or_404(Shop.active_objects, pk=request.POST.get('shop_id'))
+        warehouse = get_object_or_404(Warehouse.active_objects, pk=request.POST.get('warehouse_id'))
+
+        if Relation.active_objects.filter(shop=shop, warehouse=warehouse).exists():
+            messages.error(request, '既に連携済みの倉庫です。')
+        else:
+            Relation.objects.create(shop=shop, warehouse=warehouse)
+            messages.success(request, f'「{warehouse.warehouse_name}」と連携しました。')
+
+        return redirect(request.POST.get('next') or reverse('relation_list'))
+
+
 class RelationDeleteView(AdminRequiredMixin, View):
     def post(self, request, pk):
         relation = get_object_or_404(Relation.active_objects, pk=pk)
@@ -582,7 +596,7 @@ class OrderGoodsListView(ShopStaffRequiredMixin, ListView):
 
     def get_queryset(self):
         # 連携倉庫の在庫合計を併せて取得
-        related_warehouse_ids = Relation.objects.filter(
+        related_warehouse_ids = Relation.active_objects.filter(
             shop=self.request.user.shop
         ).values_list('warehouse_id', flat=True)
 
@@ -601,7 +615,7 @@ class OrderGoodsListView(ShopStaffRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         # ログインユーザーの店舗と連携している倉庫IDを取得
-        related_warehouse_ids = Relation.objects.filter(
+        related_warehouse_ids = Relation.active_objects.filter(
             shop=self.request.user.shop
         ).values_list('warehouse_id', flat=True)
 
@@ -672,39 +686,44 @@ class OrderCreateView(ShopStaffRequiredMixin, TemplateView):
 
 class OrderCsvDownloadView(ShopStaffRequiredMixin, View):
     def get(self, request, *args, **kwargs):
+        try:
+            related_warehouse_ids = Relation.active_objects.filter(
+                shop=self.request.user.shop
+            ).values_list('warehouse_id', flat=True)
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8')
-        response.write('\ufeff')  # BOMの書き込み
-        filename = "一括商品発注表.csv"
-        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+            stocks = WarehouseStock.active_objects.select_related(
+                'warehouse',
+                'goods',
+                'goods__goods_category',
+            ).filter(
+                warehouse_id__in=related_warehouse_ids
+            ).order_by('warehouse__warehouse_name')
 
-        writer = csv.writer(response)
-        writer.writerow(['倉庫ID', '倉庫名', 'カテゴリ', '商品ID', '商品名', '現在の在庫数', '発注数'])
-        # ログインユーザーの店舗と連携している倉庫情報を取得
-        related_warehouse_ids = Relation.objects.filter(
-            shop=self.request.user.shop
-        ).values_list('warehouse_id', flat=True)
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
+            response.write('\ufeff')  # BOMの書き込み
+            filename = "一括商品発注表.csv"
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
 
-        stocks = WarehouseStock.active_objects.select_related(
-            'warehouse',
-            'goods',
-            'goods__goods_category',
-        ).filter(
-            warehouse_id__in=related_warehouse_ids
-        ).order_by('warehouse__warehouse_name')
+            writer = csv.writer(response)
+            writer.writerow(['倉庫ID', '倉庫名', 'カテゴリ', '商品ID', '商品名', '現在の在庫数', '発注数'])
 
-        for stock in stocks:
-            writer.writerow([
-                stock.warehouse.id,
-                stock.warehouse.warehouse_name,
-                stock.goods.goods_category.category_name,
-                stock.goods.id,
-                stock.goods.goods_name,
-                stock.stock,
-                ''  # 発注数は空欄で出力
-            ])
+            for stock in stocks:
+                writer.writerow([
+                    stock.warehouse.id,
+                    stock.warehouse.warehouse_name,
+                    stock.goods.goods_category.category_name,
+                    stock.goods.id,
+                    stock.goods.goods_name,
+                    stock.stock,
+                    ''
+                ])
 
-        return response
+            return response
+
+        except Exception as e:
+            logger.error("CSV一括発注ダウンロードに失敗しました: %s", e)
+            messages.error(request, 'CSVの生成に失敗しました。')
+            return redirect('order_goods_list')
 
 class OrderCsvImportView(ShopStaffRequiredMixin, View):
     def post(self, request, *args, **kwargs):
@@ -717,7 +736,10 @@ class OrderCsvImportView(ShopStaffRequiredMixin, View):
             decoded_file = csv_file.read().decode('utf-8-sig').splitlines()
             reader = csv.DictReader(decoded_file)
 
-            orders = {}
+            valid_rows = []
+            stock_errors = []
+
+            # ─── フェーズ1: バリデーション（全行チェック、DBへの書き込みなし） ───
             for row in reader:
                 warehouse_id = row['倉庫ID'].strip()
                 goods_id = row['商品ID'].strip()
@@ -725,26 +747,60 @@ class OrderCsvImportView(ShopStaffRequiredMixin, View):
                 if not order_quantity_str:
                     continue
                 order_quantity = int(order_quantity_str)
-                if order_quantity > 0:
-                    warehouse = Warehouse.active_objects.filter(id=warehouse_id).first()
-                    goods = Goods.active_objects.filter(id=goods_id).first()
+                if order_quantity <= 0:
+                    continue
 
-                    if warehouse and goods:
-                        relation = Relation.active_objects.filter(
-                            shop=request.user.shop,
-                            warehouse=warehouse
-                        ).first()
-                        if relation:
-                            # 同一倉庫のOrderがすでに存在する場合は新たにOrderを作成せず、既存のOrderにOrderGoodsを追加する
-                            if relation.id not in orders:
-                                orders[relation.id] = Order.objects.create(relation=relation)
+                warehouse = Warehouse.active_objects.filter(id=warehouse_id).first()
+                goods = Goods.active_objects.filter(id=goods_id).first()
 
-                            order = orders[relation.id]
-                            OrderGoods.objects.create(
-                                order=order,
-                                goods=goods,
-                                quantity=order_quantity
-                            )
+                if not (warehouse and goods):
+                    continue
+
+                relation = Relation.active_objects.filter(
+                    shop=request.user.shop,
+                    warehouse=warehouse
+                ).first()
+                if not relation:
+                    continue
+
+                # 倉庫在庫数チェック
+                warehouse_stock = WarehouseStock.active_objects.filter(
+                    warehouse=warehouse, goods=goods
+                ).first()
+                stock = warehouse_stock.stock if warehouse_stock else 0
+                if order_quantity > stock:
+                    stock_errors.append(
+                        f'「{goods.goods_name}」（{warehouse.warehouse_name}）: '
+                        f'在庫数 {stock} に対して発注数 {order_quantity} は超過しています。'
+                    )
+                    continue
+
+                valid_rows.append({
+                    'relation': relation,
+                    'goods': goods,
+                    'quantity': order_quantity,
+                })
+
+            # 在庫超過エラーがあれば全件中断
+            if stock_errors:
+                for error_msg in stock_errors:
+                    messages.error(request, error_msg)
+                messages.error(request, '在庫数を超える発注があるため、全ての発注をキャンセルしました。CSVを修正して再度アップロードしてください。')
+                return redirect('order_goods_list')
+
+            # ─── フェーズ2: 発注作成（バリデーション通過後のみ） ───
+            orders = {}
+            for item in valid_rows:
+                relation = item['relation']
+                # 同一倉庫のOrderがすでに存在する場合は新たにOrderを作成せず、既存のOrderにOrderGoodsを追加する
+                if relation.id not in orders:
+                    orders[relation.id] = Order.objects.create(relation=relation)
+                OrderGoods.objects.create(
+                    order=orders[relation.id],
+                    goods=item['goods'],
+                    quantity=item['quantity'],
+                )
+
             messages.success(request, 'CSVファイルから発注を作成しました。')
         except Exception as e:
             messages.error(request, f'CSVファイルの処理中にエラーが発生しました: {str(e)}')
@@ -775,116 +831,129 @@ class OrderHistoryView(ShopStaffRequiredMixin, TemplateView):
 class OrderHistoryCSVExportView(ShopStaffRequiredMixin, View):
 
     def get(self, request):
-        orders = services.get_order_history_data(request.user.shop)
-        date_from       = self.request.GET.get('date_from', '')
-        date_to         = self.request.GET.get('date_to',   '')
-        selected_status = self.request.GET.get('status',    '')
-        # 検索条件を反映
-        orders = services.order_filter_by_date_and_status(orders, date_from, date_to, selected_status)
-        rows   = services.build_rows(orders)
+        try:
+            orders = services.get_order_history_data(request.user.shop)
+            date_from       = self.request.GET.get('date_from', '')
+            date_to         = self.request.GET.get('date_to',   '')
+            selected_status = self.request.GET.get('status',    '')
+            orders = services.order_filter_by_date_and_status(orders, date_from, date_to, selected_status)
+            rows   = services.build_rows(orders)
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8')
-        response.write('﻿')  # BOM の書き込み（Excel での文字化け防止）
-        filename = "発注履歴.csv"
-        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
+            response.write('﻿')  # BOM の書き込み（Excel での文字化け防止）
+            filename = "発注履歴.csv"
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
 
-        writer = csv.writer(response)
-        writer.writerow(['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
+            writer = csv.writer(response)
+            writer.writerow(['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
 
-        for row in rows:
-            order = row['order']
-            og    = row['order_goods']
-            writer.writerow([
-                order.relation.warehouse.warehouse_name,
-                og.goods.goods_name if og else '',
-                og.quantity         if og else '',
-                order.get_status_display(),
-                order.ordered_at.strftime('%Y-%m-%d %H:%M:%S'),
-                order.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-            ])
+            for row in rows:
+                order = row['order']
+                og    = row['order_goods']
+                writer.writerow([
+                    order.relation.warehouse.warehouse_name,
+                    og.goods.goods_name if og else '',
+                    og.quantity         if og else '',
+                    order.get_status_display(),
+                    order.ordered_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    order.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                ])
 
-        return response
+            return response
+
+        except Exception as e:
+            logger.error("発注履歴CSVエクスポートに失敗しました: %s", e)
+            messages.error(request, 'CSVの生成に失敗しました。')
+            return redirect('order_history')
 
 
 #発注履歴を PDF でダウンロードする。
 class OrderHistoryPDFExportView(ShopStaffRequiredMixin, View):
 
     def get(self, request):
+        import importlib.util
+        if importlib.util.find_spec('reportlab') is None:
+            logger.error("reportlabがインストールされていません")
+            messages.error(request, 'PDF生成に必要なライブラリがインストールされていません。')
+            return redirect('order_history')
+
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+
         try:
-            from reportlab.lib.pagesizes import A4, landscape
-            from reportlab.lib import colors
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.pdfbase import pdfmetrics
-            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-        except ImportError:
-            return HttpResponse('PDF生成に必要なライブラリがインストールされていません。', status=500)
+            pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
+            FONT = 'HeiseiKakuGo-W5'
 
-        pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
-        FONT = 'HeiseiKakuGo-W5'
+            orders = services.get_order_history_data(request.user.shop)
+            date_from       = self.request.GET.get('date_from', '')
+            date_to         = self.request.GET.get('date_to',   '')
+            selected_status = self.request.GET.get('status',    '')
+            orders = services.order_filter_by_date_and_status(orders, date_from, date_to, selected_status)
+            rows   = services.build_rows(orders)
 
-        orders = services.get_order_history_data(request.user.shop)
-        date_from       = self.request.GET.get('date_from', '')
-        date_to         = self.request.GET.get('date_to',   '')
-        selected_status = self.request.GET.get('status',    '')
-        # 検索条件を反映
-        orders = services.order_filter_by_date_and_status(orders, date_from, date_to, selected_status)
-        rows   = services.build_rows(orders)
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=landscape(A4),
+                leftMargin=20, rightMargin=20,
+                topMargin=20, bottomMargin=20,
+            )
 
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=landscape(A4),
-            leftMargin=20, rightMargin=20,
-            topMargin=20, bottomMargin=20,
-        )
+            styles     = getSampleStyleSheet()
+            jp_style   = ParagraphStyle('jp',    parent=styles['Normal'],  fontName=FONT, fontSize=9)
+            title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
 
-        styles     = getSampleStyleSheet()
-        jp_style   = ParagraphStyle('jp',    parent=styles['Normal'],  fontName=FONT, fontSize=9)
-        title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
+            elements = []
+            elements.append(Paragraph('発注履歴一覧', title_style))
+            elements.append(Spacer(1, 12))
 
-        elements = []
-        elements.append(Paragraph('発注履歴一覧', title_style))
-        elements.append(Spacer(1, 12))
+            header = ['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
+            table_data = [[Paragraph(h, jp_style) for h in header]]
 
-        header = ['発注先倉庫', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
-        table_data = [[Paragraph(h, jp_style) for h in header]]
+            for row in rows:
+                order = row['order']
+                og    = row['order_goods']
+                table_data.append([
+                    Paragraph(order.relation.warehouse.warehouse_name, jp_style),
+                    Paragraph(og.goods.goods_name if og else '',       jp_style),
+                    Paragraph(str(og.quantity)    if og else '',       jp_style),
+                    Paragraph(order.get_status_display(),              jp_style),
+                    Paragraph(order.ordered_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+                    Paragraph(order.updated_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+                ])
 
-        for row in rows:
-            order = row['order']
-            og    = row['order_goods']
-            table_data.append([
-                Paragraph(order.relation.warehouse.warehouse_name, jp_style),
-                Paragraph(og.goods.goods_name if og else '',       jp_style),
-                Paragraph(str(og.quantity)    if og else '',       jp_style),
-                Paragraph(order.get_status_display(),              jp_style),
-                Paragraph(order.ordered_at.strftime('%Y-%m-%d %H:%M'), jp_style),
-                Paragraph(order.updated_at.strftime('%Y-%m-%d %H:%M'), jp_style),
-            ])
+            col_widths = [110, 140, 60, 80, 110, 110]
+            table = Table(table_data, colWidths=col_widths, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#4caf50')),
+                ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
+                ('FONTNAME',       (0, 0), (-1, -1), FONT),
+                ('FONTSIZE',       (0, 0), (-1, -1), 9),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
+                ('GRID',           (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING',     (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(table)
 
-        col_widths = [110, 140, 60, 80, 110, 110]
-        table = Table(table_data, colWidths=col_widths, repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#4caf50')),
-            ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
-            ('FONTNAME',       (0, 0), (-1, -1), FONT),
-            ('FONTSIZE',       (0, 0), (-1, -1), 9),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
-            ('GRID',           (0, 0), (-1, -1), 0.5, colors.grey),
-            ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING',     (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
-        ]))
-        elements.append(table)
+            doc.build(elements)
+            pdf_bytes = buffer.getvalue()
+            buffer.close()
 
-        doc.build(elements)
-        pdf_bytes = buffer.getvalue()
-        buffer.close()
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            filename = "発注履歴.pdf"
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+            return response
 
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        filename = "発注履歴.pdf"
-        response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
-        return response
+        except Exception as e:
+            logger.error("発注履歴PDFエクスポートに失敗しました: %s", e)
+            messages.error(request, 'PDFの生成に失敗しました。')
+            return redirect('order_history')
 
 def _get_filtered_orders(request):
     """ログイン倉庫の受注クエリセットを返す（フィルタ適用済み）。CSV・PDFビューと共用。"""
@@ -919,17 +988,27 @@ def _get_filtered_orders(request):
     return qs
 
 
+_STATUS_TRANSITIONS = {
+    Order.Status.ORDERED:   [Order.Status.ORDERED,   Order.Status.PREPARING, Order.Status.CANCELED],
+    Order.Status.PREPARING: [Order.Status.PREPARING, Order.Status.SHIPPED,   Order.Status.CANCELED],
+    Order.Status.SHIPPED:   [Order.Status.SHIPPED,   Order.Status.DELIVERED, Order.Status.CANCELED],
+    Order.Status.DELIVERED: [Order.Status.DELIVERED, Order.Status.CANCELED],
+    Order.Status.CANCELED:  [Order.Status.CANCELED],
+}
+
+
 def _build_rows(orders):
     """テンプレート・CSV・PDF 共通のフラット行リストを生成する（rowspan 計算込み）。"""
     rows = []
     for order in orders:
         goods_list = order.active_order_goods
         count = len(goods_list)
+        available_statuses = _STATUS_TRANSITIONS.get(order.status, [])
         if count == 0:
-            rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1})
+            rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1, 'available_statuses': available_statuses})
         else:
             for i, og in enumerate(goods_list):
-                rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count})
+                rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count, 'available_statuses': available_statuses})
     return rows
 
 
@@ -949,129 +1028,231 @@ class WarehouseOrderListView(WarehouseStaffRequiredMixin, TemplateView):
 
 class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
 
-    ALLOWED_STATUSES = {Order.Status.ORDERED.value, Order.Status.PREPARING.value}
+    ALLOWED_STATUSES = {Order.Status.ORDERED.value,
+                        Order.Status.PREPARING.value,
+                        Order.Status.SHIPPED.value,
+                        Order.Status.DELIVERED.value,
+                        Order.Status.CANCELED.value,}
+
+    STOCK_DEDUCTED_STATUSES = {
+        Order.Status.SHIPPED.value,
+        Order.Status.DELIVERED.value,
+    }
 
     def post(self, request, pk):
-        order = get_object_or_404(
-            Order.active_objects,
-            pk=pk,
-            relation__warehouse=request.user.warehouse,
-        )
-        new_status = request.POST.get('status', '').strip()
-        try:
-            new_status_int = int(new_status)
-            if new_status_int not in self.ALLOWED_STATUSES:
-                raise ValueError
-        except (ValueError, TypeError):
-            messages.error(request, '無効なステータスです。')
-            return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+        with transaction.atomic():
+            order = get_object_or_404(
+                Order.active_objects.select_for_update(),
+                pk=pk,
+                relation__warehouse=request.user.warehouse,
+            )
+            new_status = request.POST.get('status', '').strip()
+            try:
+                new_status_int = int(new_status)
+                if new_status_int not in self.ALLOWED_STATUSES:
+                    raise ValueError
+            except (ValueError, TypeError):
+                messages.error(request, '無効なステータスです。')
+                return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
-        order.status = new_status_int
-        order.save(update_fields=['status', 'updated_at'])
-        messages.success(request, 'ステータスを更新しました。')
-        return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+            old_status = order.status
+
+            # 在庫未減算の状態から発送済みになる時だけ引く
+            try:
+                if (
+                    old_status not in self.STOCK_DEDUCTED_STATUSES
+                    and new_status_int == Order.Status.SHIPPED.value
+                ):
+                    minus_stock(order)
+
+                # 在庫減算済みの状態からキャンセルになる時は倉庫在庫を戻す
+                if (
+                    old_status in self.STOCK_DEDUCTED_STATUSES
+                    and new_status_int == Order.Status.CANCELED.value
+                ):
+                    restore_stock(order)
+
+                # 発送済みから納品済みになる時に店舗在庫を追加する
+                if (
+                    old_status == Order.Status.SHIPPED.value
+                    and new_status_int == Order.Status.DELIVERED.value
+                ):
+                    add_shop_stock(order)
+
+                # 納品済みからキャンセルになる時に店舗在庫を引く
+                if (
+                    old_status == Order.Status.DELIVERED.value
+                    and new_status_int == Order.Status.CANCELED.value
+                ):
+                    subtract_shop_stock(order)
+
+            except (WarehouseStock.DoesNotExist, ShopStock.DoesNotExist):
+                messages.error(request, "在庫データが存在しません。")
+                return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+
+            order.status = new_status_int
+            order.save(update_fields=['status', 'updated_at'])
+            messages.success(request, 'ステータスを更新しました。')
+            return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
 
 class WarehouseOrderCSVExportView(WarehouseStaffRequiredMixin, View):
     """受注一覧を CSV でダウンロードする。"""
 
     def get(self, request):
-        orders = _get_filtered_orders(request)
-        rows   = _build_rows(orders)
+        try:
+            orders = _get_filtered_orders(request)
+            rows   = _build_rows(orders)
 
-        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-        response['Content-Disposition'] = 'attachment; filename="warehouse_orders.csv"'
+            response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+            filename = '受注履歴.csv'
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
 
-        writer = csv.writer(response)
-        writer.writerow(['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
+            writer = csv.writer(response)
+            writer.writerow(['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時'])
 
-        for row in rows:
-            order = row['order']
-            og    = row['order_goods']
-            writer.writerow([
-                order.relation.shop.shop_name,
-                og.goods.goods_name if og else '',
-                og.quantity         if og else '',
-                order.get_status_display(),
-                order.ordered_at.strftime('%Y-%m-%d %H:%M:%S'),
-                order.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-            ])
+            for row in rows:
+                order = row['order']
+                og    = row['order_goods']
+                writer.writerow([
+                    order.relation.shop.shop_name,
+                    og.goods.goods_name if og else '',
+                    og.quantity         if og else '',
+                    order.get_status_display(),
+                    order.ordered_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    order.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                ])
 
-        return response
+            return response
+
+        except Exception as e:
+            logger.error("受注CSVエクスポートに失敗しました: %s", e)
+            messages.error(request, 'CSVの生成に失敗しました。')
+            return redirect('warehouse_order_list')
 
 
 class WarehouseOrderPDFExportView(WarehouseStaffRequiredMixin, View):
     """受注一覧を PDF でダウンロードする。"""
 
     def get(self, request):
+        import importlib.util
+        if importlib.util.find_spec('reportlab') is None:
+            logger.error("reportlabがインストールされていません")
+            messages.error(request, 'PDF生成に必要なライブラリがインストールされていません。')
+            return redirect('warehouse_order_list')
+
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+
         try:
-            from reportlab.lib.pagesizes import A4, landscape
-            from reportlab.lib import colors
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.pdfbase import pdfmetrics
-            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-        except ImportError:
-            return HttpResponse('PDF生成に必要なライブラリがインストールされていません。', status=500)
+            pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
+            FONT = 'HeiseiKakuGo-W5'
 
-        pdfmetrics.registerFont(UnicodeCIDFont('HeiseiKakuGo-W5'))
-        FONT = 'HeiseiKakuGo-W5'
+            orders = _get_filtered_orders(request)
+            rows   = _build_rows(orders)
 
-        orders = _get_filtered_orders(request)
-        rows   = _build_rows(orders)
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=landscape(A4),
+                leftMargin=20, rightMargin=20,
+                topMargin=20, bottomMargin=20,
+            )
 
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=landscape(A4),
-            leftMargin=20, rightMargin=20,
-            topMargin=20, bottomMargin=20,
-        )
+            styles     = getSampleStyleSheet()
+            jp_style   = ParagraphStyle('jp',    parent=styles['Normal'],  fontName=FONT, fontSize=9)
+            title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
 
-        styles     = getSampleStyleSheet()
-        jp_style   = ParagraphStyle('jp',    parent=styles['Normal'],  fontName=FONT, fontSize=9)
-        title_style = ParagraphStyle('title', parent=styles['Heading1'], fontName=FONT, fontSize=14)
+            elements = []
+            elements.append(Paragraph('受注管理一覧', title_style))
+            elements.append(Spacer(1, 12))
 
-        elements = []
-        elements.append(Paragraph('受注管理一覧', title_style))
-        elements.append(Spacer(1, 12))
+            header = ['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
+            table_data = [[Paragraph(h, jp_style) for h in header]]
 
-        header = ['発注元店舗', '商品名', '発注個数', 'ステータス', '発注日時', '更新日時']
-        table_data = [[Paragraph(h, jp_style) for h in header]]
+            for row in rows:
+                order = row['order']
+                og    = row['order_goods']
+                table_data.append([
+                    Paragraph(order.relation.shop.shop_name,          jp_style),
+                    Paragraph(og.goods.goods_name if og else '',       jp_style),
+                    Paragraph(str(og.quantity)    if og else '',       jp_style),
+                    Paragraph(order.get_status_display(),              jp_style),
+                    Paragraph(order.ordered_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+                    Paragraph(order.updated_at.strftime('%Y-%m-%d %H:%M'), jp_style),
+                ])
 
-        for row in rows:
-            order = row['order']
-            og    = row['order_goods']
-            table_data.append([
-                Paragraph(order.relation.shop.shop_name,          jp_style),
-                Paragraph(og.goods.goods_name if og else '',       jp_style),
-                Paragraph(str(og.quantity)    if og else '',       jp_style),
-                Paragraph(order.get_status_display(),              jp_style),
-                Paragraph(order.ordered_at.strftime('%Y-%m-%d %H:%M'), jp_style),
-                Paragraph(order.updated_at.strftime('%Y-%m-%d %H:%M'), jp_style),
-            ])
+            col_widths = [110, 140, 60, 80, 110, 110]
+            table = Table(table_data, colWidths=col_widths, repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#4caf50')),
+                ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
+                ('FONTNAME',       (0, 0), (-1, -1), FONT),
+                ('FONTSIZE',       (0, 0), (-1, -1), 9),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
+                ('GRID',           (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING',     (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(table)
 
-        col_widths = [110, 140, 60, 80, 110, 110]
-        table = Table(table_data, colWidths=col_widths, repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND',     (0, 0), (-1, 0),  colors.HexColor('#4caf50')),
-            ('TEXTCOLOR',      (0, 0), (-1, 0),  colors.white),
-            ('FONTNAME',       (0, 0), (-1, -1), FONT),
-            ('FONTSIZE',       (0, 0), (-1, -1), 9),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
-            ('GRID',           (0, 0), (-1, -1), 0.5, colors.grey),
-            ('VALIGN',         (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING',     (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING',  (0, 0), (-1, -1), 4),
-        ]))
-        elements.append(table)
+            doc.build(elements)
+            pdf_bytes = buffer.getvalue()
+            buffer.close()
 
-        doc.build(elements)
-        pdf_bytes = buffer.getvalue()
-        buffer.close()
+            response = HttpResponse(pdf_bytes, content_type='application/pdf')
+            filename = '受注履歴.pdf'
+            response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+            return response
 
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="warehouse_orders.pdf"'
-        return response
+        except Exception as e:
+            logger.error("受注PDFエクスポートに失敗しました: %s", e)
+            messages.error(request, 'PDFの生成に失敗しました。')
+            return redirect('warehouse_order_list')
     
     
+class ShopDetailView(AdminRequiredMixin, DetailView):
+    model = Shop
+    template_name = 'inventory/shop_detail.html'
+    context_object_name = 'shop'
+
+    def get_queryset(self):
+        return Shop.active_objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        shop = self.object
+
+        prefecture = self.request.GET.get('prefecture', '')
+        q = self.request.GET.get('q', '')
+        status = self.request.GET.get('status', '')
+
+        connected_relations = Relation.active_objects.filter(shop=shop).select_related('warehouse')
+        connected_warehouse_ids = connected_relations.values_list('warehouse_id', flat=True)
+        not_connected = Warehouse.active_objects.exclude(id__in=connected_warehouse_ids)
+
+        if prefecture:
+            connected_relations = connected_relations.filter(warehouse__prefecture=prefecture)
+            not_connected = not_connected.filter(prefecture=prefecture)
+
+        if q:
+            connected_relations = connected_relations.filter(warehouse__warehouse_name__icontains=q)
+            not_connected = not_connected.filter(warehouse_name__icontains=q)
+
+        if status == 'connected':
+            not_connected = Warehouse.active_objects.none()
+        elif status == 'not_connected':
+            connected_relations = Relation.active_objects.none()
+
+        context['connected_relations'] = connected_relations
+        context['not_connected_warehouses'] = not_connected
+        context['prefecture_choices'] = PREFECTURE_CHOICES
+        context['selected_prefecture'] = prefecture
+        context['selected_q'] = q
+        context['selected_status'] = status
+        return context

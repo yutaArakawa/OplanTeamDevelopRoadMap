@@ -43,9 +43,7 @@
             {% endif %}
         </div>
         <div class="col-auto d-flex align-items-end">
-            <button type="submit" class="btn-primary">
-                権限絞り込み
-            </button>
+            <button type="submit" class="btn btn-outline-primary">絞り込む</button>
             <a href="{% url 'user_list' %}" class="btn btn-outline-secondary ms-1">リセット</a>
         </div>
     </form>
@@ -58,7 +56,7 @@
             <th>性別</th>
             <th>権限</th>
             <th>所属</th>
-            <th>編集</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -90,9 +88,12 @@
 
             <!--操作-->
             <td>
-                <a href="{% url 'user_update' pk=user.pk %}" class="btn btn-sm btn-outline-primary">編集</a>
+                {% if user == request.user %}
+                <a href="{% url 'mypage' %}" class="btn btn-sm btn-outline-primary">マイページ</a>
+                {% elif request.user.authority_id == AUTHORITY_ADMIN %}
+                <a href="{% url 'user_update' user.pk %}" class="btn btn-sm btn-outline-secondary">編集</a>
+                {% endif %}
             </td>
-             
         </tr>
         {% empty %}
             ユーザーが存在しません

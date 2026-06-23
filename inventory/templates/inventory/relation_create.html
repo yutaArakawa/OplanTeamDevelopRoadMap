@@ -20,7 +20,24 @@
             <label class="form-label">
                 店舗名
             </label>
-            {{ form.shop }}
+            <!-- 表示用テキストinput（オートコンプリート） -->
+            <div class="input-group">
+                <input
+                    type="text"
+                    class="form-control"
+                    id="shop-name-input"
+                    name="shop-name-display"
+                    autocomplete="off"
+                    placeholder="店舗名で検索"
+                >
+                <button class="btn btn-outline-secondary" id="shop-clear-btn" type="button">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <ul id="shop-name-dropdown" class="list-group autocomplete-dropdown"></ul>
+
+            <!-- 実際にフォームで送信するhidden input（formのselectを非表示にして代わりに使う） -->
+            <input type="hidden" name="shop" id="shop-id-input">
             {% if form.shop.errors %}
             <div class="text-danger">
                 {{ form.shop.errors }}
@@ -32,7 +49,24 @@
             <label class="form-label">
                 倉庫名
             </label>
-            {{ form.warehouse }}
+            <!-- 表示用テキストinput（オートコンプリート） -->
+            <div class="input-group">
+                <input
+                    type="text"
+                    class="form-control"
+                    id="warehouse-name-input"
+                    name="warehouse-name-display"
+                    autocomplete="off"
+                    placeholder="倉庫名で検索"
+                >
+                <button class="btn btn-outline-secondary" id="warehouse-clear-btn" type="button">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <ul id="warehouse-name-dropdown" class="list-group autocomplete-dropdown"></ul>
+
+            <!-- 実際にフォームで送信するhidden input（formのselectを非表示にして代わりに使う） -->
+            <input type="hidden" name="warehouse" id="warehouse-id-input">
             {% if form.warehouse.errors %}
             <div class="text-danger">
                 {{ form.warehouse.errors }}

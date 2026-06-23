@@ -8,6 +8,7 @@ jobs:
           DJANGO_DB_HOST: 127.0.0.1
           DJANGO_SETTINGS_MODULE: config.settings
           CI: true
+          SECRET_KEY: dummy-secret-key-for-ci-only
       - image: cimg/mysql:8.0
         environment:
           MYSQL_ROOT_PASSWORD: password
@@ -28,6 +29,15 @@ jobs:
           keys:
             - deps-{{ checksum "requirements.txt" }}
             - deps-
+
+      # =============================================
+      # システムライブラリのインストール
+      # =============================================
+      - run:
+          name: Install system dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y libjpeg-dev zlib1g-dev libpng-dev libfreetype6-dev
 
       # =============================================
       # 依存関係のインストール

@@ -44,7 +44,7 @@
 
         <!-- カテゴリ -->
         <div class="mb-3">
-            <label class="form-label">カテゴリ</label>
+            <label class="form-label">カテゴリ <span class="text-danger">*</span></label>
             {{ form.inquiry_category }}
             {% if form.inquiry_category.errors %}
             <div class="text-danger">{{ form.inquiry_category.errors }}</div>
