@@ -21,7 +21,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">
-                            商品名
+                            商品名 <span class="text-danger">*</span>
                         </label>
                         {{ form.goods_name }}
                         {% if form.goods_name.errors %}
@@ -33,7 +33,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">
-                            カテゴリ
+                            カテゴリ <span class="text-danger">*</span>
                         </label>
                         {{ form.goods_category }}
                         {% if form.goods_category.errors %}
@@ -49,10 +49,12 @@
                         </button>
                         {% if object %}
                         <button
-                            type="submit"
-                            form="delete-form"
-                            class="btn btn-outline-danger"
+                            type="button"
+                            class="btn btn-danger btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#deleteModal"
                             {% if not can_delete %}disabled title="在庫情報または受注明細に紐づく商品は削除できません。"{% endif %}
+                            data-delete-url="{{ goods.get_delete_url }}"
                         >
                             削除
                         </button>

@@ -156,12 +156,51 @@ class UserUpdateForm(UserChangeForm):
         if password:
             user.set_password(password)
 
-        # 店舗スタッフと倉庫スタッフは権限を変更できないようにする
-        if self.login_user.authority_id == AUTHORITY_SHOP or self.login_user.authority_id == AUTHORITY_WAREHOUSE:
+        if self.login_user and (
+            self.login_user.authority_id == AUTHORITY_SHOP or
+            self.login_user.authority_id == AUTHORITY_WAREHOUSE
+        ):
             user.authority = self.instance.authority
             user.username = self.instance.username
             user.user_gender = self.instance.user_gender
 
+        if commit:
+            user.save()
+        return user
+
+
+class MyPageForm(forms.ModelForm):
+    new_password1 = forms.CharField(
+        label='新しいパスワード',
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        required=False,
+    )
+    new_password2 = forms.CharField(
+        label='新しいパスワード（確認）',
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        required=False,
+    )
+
+    class Meta:
+        model = User
+        fields = ('username',)
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get('new_password1')
+        p2 = cleaned_data.get('new_password2')
+        if p1 and p1 != p2:
+            raise ValidationError('パスワードが一致しません。')
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get('new_password1')
+        if password:
+            user.set_password(password)
         if commit:
             user.save()
         return user
