@@ -139,6 +139,7 @@ class UserDeleteView(LoginRequiredMixin, View):
         user.delete_flg = True
         user.save()
         
+        messages.success(request, 'ユーザーを削除しました。')
         return redirect('user_list')
 
     

@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 
 # Create your models here.
 class ActiveManager(models.Manager):
@@ -107,6 +108,9 @@ class Inquiry(BaseModel):
             return 'ゲスト'
         return str(self.from_authority) if self.from_authority else '-'
 
+    def get_delete_url(self):
+        return reverse('inquiry_delete', kwargs={'pk': self.pk})
+
 class InquiryCategory(BaseModel):
     category_name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -144,3 +148,6 @@ class InquiryCategory(BaseModel):
 
     def __str__(self):
         return self.category_name
+
+    def get_delete_url(self):
+        return reverse('inquiry_category_delete', kwargs={'pk': self.pk})

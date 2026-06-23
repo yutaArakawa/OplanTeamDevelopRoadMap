@@ -114,11 +114,15 @@
             </td>
 
             <td>
-                <form method="post" action="{% url 'inquiry_delete' pk=inquiry.pk %}"
-                      onsubmit="return confirm('本当に削除しますか？');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
-                </form>
+                <button
+                    type="button"
+                    class="btn btn-danger btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteModal"
+                    data-delete-url="{{ inquiry.get_delete_url }}"
+                >
+                    削除
+                </button>
             </td>
         </tr>
         {% empty %}
@@ -238,11 +242,15 @@
             </td>
 
             <td>
-                <form method="post" action="{% url 'inquiry_delete' pk=inquiry.pk %}"
-                      onsubmit="return confirm('本当に削除しますか？');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
-                </form>
+                <button
+                    type="button"
+                    class="btn btn-danger btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteModal"
+                    data-delete-url="{{ inquiry.get_delete_url }}"
+                >
+                    削除
+                </button>
             </td>
         </tr>
         {% empty %}

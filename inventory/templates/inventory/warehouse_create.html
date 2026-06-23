@@ -18,7 +18,7 @@
 
         <div class="mb-3">
             <label class="form-label">
-                倉庫名
+                倉庫名 <span class="text-danger">*</span>
             </label>
             {{ form.warehouse_name }}
             {% if form.warehouse_name.errors %}
@@ -30,7 +30,7 @@
 
         <div class="mb-3">
             <label class="form-label">
-                都道府県
+                都道府県 <span class="text-danger">*</span>
             </label>
             <div class="position-relative">
                 <div class="d-flex gap-1">
@@ -55,7 +55,7 @@
 
         <div class="mb-3">
             <label class="form-label">
-                市区町村
+                市区町村 <span class="text-danger">*</span>
             </label>
             {{ form.city }}
             {% if form.city.errors %}
@@ -67,7 +67,7 @@
 
         <div class="mb-3">
             <label class="form-label">
-                町名・番地
+                町名・番地 <span class="text-danger">*</span>
             </label>
             {{ form.address1 }}
             {% if form.address1.errors %}
@@ -95,10 +95,12 @@
             </button>
             {% if object %}
             <button
-                type="submit"
-                form="delete-form"
-                class="btn btn-outline-danger"
+                type="button"
+                class="btn btn-danger btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteModal"
                 {% if not can_delete %}disabled title="在庫情報・倉庫店舗連携・所属ユーザーに紐づく倉庫は削除できません。"{% endif %}
+                data-delete-url="{{ warehouse.get_delete_url }}"
             >
                 削除
             </button>
