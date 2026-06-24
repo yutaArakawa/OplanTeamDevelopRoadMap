@@ -2,28 +2,35 @@
 
     <div class="container-fluid d-flex">
 
-        <div class="d-flex align-items-center">
+        <div class="d-flex align-items-center gap-2">
             {% if user.is_authenticated %}
             {% include 'components/sidebar.html' %}
             {% endif %}
-            <a class="navbar-brand ms-3" href="{% url 'home' %}">Python Stock App</a>
+            <a class="navbar-brand d-flex align-items-center gap-2 ms-2 text-decoration-none" href="{% url 'home' %}">
+                <span class="navbar-brand-text">在庫管理システム</span>
+            </a>
         </div>
 
         {% if user.is_authenticated %}
-        <div class="d-flex align-items-center">
-            <p class="navbar-text mb-0 me-3">
-                {{ request.user.authority }}:
-                {% if request.user.authority_id == 2 %}
-                {{ request.user.shop }}
-                {% elif request.user.authority_id == 3 %}
-                {{ request.user.warehouse }}
-                {% endif %}
-                {{ request.user.username }} さんでログイン中
-            </p>
-
+        <div class="d-flex align-items-center gap-3">
+            <div class="navbar-user-info d-none d-md-flex align-items-center gap-1">
+                <i class="bi bi-person-circle text-secondary"></i>
+                <span>
+                    {{ request.user.authority }}
+                    {% if request.user.authority_id == 2 %}
+                    ・{{ request.user.shop }}
+                    {% elif request.user.authority_id == 3 %}
+                    ・{{ request.user.warehouse }}
+                    {% endif %}
+                    ／ <strong>{{ request.user.username }}</strong>
+                </span>
+            </div>
             <form action="{% url 'logout' %}" method="post">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-danger">ログアウト</button>
+                <button type="submit" class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span class="d-none d-sm-inline">ログアウト</span>
+                </button>
             </form>
         </div>
         {% endif %}
