@@ -21,7 +21,8 @@ class UnauthorizedException(Exception):
     default_detail = '認証情報が含まれていません。'
 
 
-class ForbiddenException(Exception):
+class ForbiddenException(DjangoPermissionDenied):
+    # DjangoのHTMLビューでも403として処理されるようDjangoPermissionDeniedを継承
     status_code = HTTP_403_FORBIDDEN
     default_detail = 'このリソースへのアクセス権限がありません。'
 
