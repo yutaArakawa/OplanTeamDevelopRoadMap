@@ -1056,6 +1056,10 @@ class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
                 return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
             old_status = order.status
+            allowed_transitions = [s.value for s in _STATUS_TRANSITIONS.get(Order.Status(old_status), [])]
+            if new_status_int not in allowed_transitions:
+                messages.error(request, '現在のステータスではこの変更はできません。再読み込みしてください。')
+                return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
             # 在庫未減算の状態から発送済みになる時だけ引く
             try:

@@ -16,6 +16,7 @@
 ### 技術スタック
 
 - **Backend**: Django 6.0.5
+- **Frontend**: React 18 + Vite（新画面）/ Django テンプレート（既存画面）
 - **Database**: MySQL 8.0（本番）/ SQLite（テスト）
 - **Container**: Docker & Docker Compose
 - **Batch Jobs**: Linux cron（Docker コンテナ内）
@@ -45,7 +46,8 @@ docker compose -f docker-compose.dev.yml up -d
 ```
 
 **アクセス:**
-- Web アプリ: http://localhost（ポート80）
+- Django 既存画面: http://localhost（ポート80）
+- React 新画面: http://localhost/react
 - MySQL: localhost:3307
 
 ---
@@ -345,6 +347,39 @@ docker compose exec cron cat /etc/cron.d/app-cron
 # cron ログを確認
 docker compose exec cron cat /var/log/cron.log
 ```
+
+---
+
+## React フロントエンド
+
+このシステムは Django テンプレートによる既存画面と React による新画面が共存しています。
+
+### URL の切り分け
+
+| 種別 | URL パターン | 例 |
+|---|---|---|
+| React 画面 | `/react/` で始まる | `http://localhost/react/`、`http://localhost/react/login` |
+| Django 既存画面 | `/react/` 以外 | `http://localhost/accounts/login/`、`http://localhost/inventory/orders/` |
+| Django API | `/api/` で始まる | `http://localhost/api/auth/login/`、`http://localhost/api/accounts/user/list/` |
+
+### 現在 React 化済みの画面
+
+- **ログイン** — `http://localhost/react/login`
+- **ホーム（ダッシュボード）** — `http://localhost/react/`
+- **ユーザー管理一覧** — `http://localhost/react/accounts/user/list`
+- **ユーザー作成** — `http://localhost/react/accounts/user/create`（管理者のみ）
+- **ユーザー編集** — `http://localhost/react/accounts/user/:id/edit`（管理者のみ）
+
+### フロントエンド開発
+
+React のソースは `frontend/` ディレクトリに配置されています。Vite によるビルド成果物は Django の静的ファイルとして配信されます。
+
+```bash
+# フロントエンドのビルド（コンテナ起動時に自動実行）
+docker compose exec web python manage.py collectstatic --noinput
+```
+
+詳細は **[frontend/CLAUDE.md](./frontend/CLAUDE.md)** を参照してください。
 
 ---
 

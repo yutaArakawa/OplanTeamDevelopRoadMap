@@ -462,6 +462,13 @@ def warehouse_order(db, relation, goods):
     return o
 
 @pytest.fixture
+def warehouse_inorder(db, relation, goods):
+    """warehouse_user の倉庫への受注（OrderGoods 付き）"""
+    o = Order.objects.create(relation=relation, status=Order.Status.PREPARING)
+    OrderGoods.objects.create(order=o, goods=goods, quantity=5)
+    return o
+
+@pytest.fixture
 def shop_stock(db, shop, goods):
     return ShopStock.objects.create(shop=shop, goods=goods, stock=50)
 
@@ -622,30 +629,30 @@ class TestWarehouseOrderStatusUpdate:
         assert response.status_code == 404
 
     def test_shipped_deducts_warehouse_stock(
-        self, client, warehouse_user, warehouse_order, warehouse_stock
+        self, client, warehouse_user, warehouse_inorder, warehouse_stock
     ):
         """発注済み→発送済みにすると倉庫在庫が減算される"""
         client.force_login(warehouse_user)
         client.post(
-            reverse('warehouse_order_status_update', kwargs={'pk': warehouse_order.pk}),
+            reverse('warehouse_order_status_update', kwargs={'pk': warehouse_inorder.pk}),
             {'status': Order.Status.SHIPPED},
         )
         warehouse_stock.refresh_from_db()
         assert warehouse_stock.stock == 95  # 100 - 5
 
     def test_shipped_no_stock_record_shows_error(
-        self, client, warehouse_user, warehouse_order
+        self, client, warehouse_user, warehouse_inorder
     ):
         """在庫レコードなしで発送済みにするとエラーメッセージが出てステータスが変わらない"""
         client.force_login(warehouse_user)
         response = client.post(
-            reverse('warehouse_order_status_update', kwargs={'pk': warehouse_order.pk}),
+            reverse('warehouse_order_status_update', kwargs={'pk': warehouse_inorder.pk}),
             {'status': Order.Status.SHIPPED},
         )
         msgs = list(get_messages(response.wsgi_request))
         assert any('在庫データが存在しません' in str(m) for m in msgs)
-        warehouse_order.refresh_from_db()
-        assert warehouse_order.status == Order.Status.ORDERED
+        warehouse_inorder.refresh_from_db()
+        assert warehouse_inorder.status == Order.Status.PREPARING
 
     def test_cancel_from_shipped_restores_warehouse_stock(
         self, client, warehouse_user, shipped_order, warehouse_stock
