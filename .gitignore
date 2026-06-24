@@ -26,3 +26,6 @@ mysql_data/
 
 # staticfiles
 staticfiles/
+
+# backup
+backup/
