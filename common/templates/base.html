@@ -16,7 +16,7 @@
     </head>
     <body>
         {% if user.is_authenticated %}
-        <div class="app-layout">
+        <div class="app-layout role-{{ request.user.authority_id }}">
             <aside class="app-sidebar" id="appSidebar">
                 {% include 'components/sidebar.html' %}
             </aside>

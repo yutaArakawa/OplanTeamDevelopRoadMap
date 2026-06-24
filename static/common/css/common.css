@@ -1,7 +1,9 @@
 /* ===== Typography ===== */
 body {
     font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background-color: #f5f7fa;
+    background:
+        radial-gradient(circle, rgba(0,0,0,0.025) 1px, transparent 1px) 0 0 / 20px 20px,
+        #f5f7fa;
 }
 
 /* ===== App Layout ===== */
@@ -13,7 +15,9 @@ body {
 .app-sidebar {
     width: 260px;
     flex-shrink: 0;
-    background: linear-gradient(180deg, #1a2f4b 0%, #2c4a6e 100%);
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px) 0 0 / 16px 16px,
+        linear-gradient(180deg, #1a2f4b 0%, #2c4a6e 100%);
     position: fixed;
     top: 0;
     left: 0;
@@ -177,6 +181,44 @@ body {
     margin: 0.375rem 0;
 }
 
+/* ===== Role-specific colors ===== */
+
+/* 店舗スタッフ（role-2）: ダークオレンジ */
+.role-2 .app-sidebar {
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px) 0 0 / 16px 16px,
+        linear-gradient(180deg, #5c2000 0%, #a84300 100%);
+}
+.role-2 .dashboard-hero {
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px) 0 0 / 20px 20px,
+        linear-gradient(135deg, #5c2000 0%, #a84300 100%);
+}
+.role-2 .card-header {
+    background-color: #fff3e0;
+    border-bottom-color: #ffe0b2;
+    color: #c05200;
+}
+.role-2 .card-accent-role { border-top: 4px solid #fd7e14; }
+
+/* 倉庫スタッフ（role-3）: ダークグリーン */
+.role-3 .app-sidebar {
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px) 0 0 / 16px 16px,
+        linear-gradient(180deg, #1a3d20 0%, #2d6b35 100%);
+}
+.role-3 .dashboard-hero {
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px) 0 0 / 20px 20px,
+        linear-gradient(135deg, #1a3d20 0%, #2d6b35 100%);
+}
+.role-3 .card-header {
+    background-color: #e8f5e9;
+    border-bottom-color: #c8e6c9;
+    color: #2e7d32;
+}
+.role-3 .card-accent-role { border-top: 4px solid #198754; }
+
 /* ===== Topbar ===== */
 .topbar-role-badge {
     font-size: 0.7rem;
@@ -198,6 +240,53 @@ body {
     font-size: 0.72rem;
     color: #6c757d;
     line-height: 1.2;
+}
+
+/* ===== Dashboard Hero ===== */
+.dashboard-hero {
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px) 0 0 / 20px 20px,
+        linear-gradient(135deg, #1a2f4b 0%, #2c4a6e 100%);
+    border-radius: 0.875rem;
+    padding: 1.5rem 1.75rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+.dashboard-hero::before {
+    content: '';
+    position: absolute;
+    right: -30px;
+    top: -30px;
+    width: 180px;
+    height: 180px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.dashboard-hero::after {
+    content: '';
+    position: absolute;
+    right: 60px;
+    bottom: -50px;
+    width: 120px;
+    height: 120px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.dashboard-hero-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    position: relative;
+}
+.dashboard-hero-sub {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 0;
+    position: relative;
 }
 
 /* ===== KPI Card Accents ===== */
