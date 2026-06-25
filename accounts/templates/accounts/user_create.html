@@ -19,7 +19,7 @@
             <div class="col-md-8"> 
                 <div class="mb-3">
                     <label class="form-label">
-                        ユーザーネーム
+                        ユーザーネーム <span class="text-danger">*</span>
                     </label>
                     {{ form.username }}
                     {% if form.username.errors %}
@@ -31,7 +31,7 @@
 
                 <div class="mb-3">
                     <label class="form-label">
-                        パスワード
+                        パスワード <span class="text-danger">*</span>
                     </label>
                     {{ form.password1 }}
                     {% if form.password1.errors %}
@@ -43,7 +43,7 @@
 
                 <div class="mb-3">
                     <label class="form-label">
-                        パスワード確認
+                        パスワード確認 <span class="text-danger">*</span>
                     </label>
                     {{ form.password2 }}
                     {% if form.password2.errors %}
@@ -55,7 +55,7 @@
 
                 <div class="mb-3">
                     <label class="form-label">
-                        性別
+                        性別 <span class="text-danger">*</span>
                     </label>
                     {{ form.user_gender }}
                     {% if form.user_gender.errors %}
@@ -67,7 +67,7 @@
 
                 <div class="mb-3">
                     <label class="form-label">
-                        権限
+                        権限 <span class="text-danger">*</span>
                     </label>
                     {{ form.authority }}
                     {% if form.authority.errors %}

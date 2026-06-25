@@ -113,62 +113,14 @@
             <a href="{% url 'user_list' %}" class="btn btn-secondary">
                 戻る
             </a>
-
             {% if user_authority_id == AUTHORITY_ADMIN %}
-            <!-- 削除ボタン -->
-             <button type="button" class="btn btn-danger ms-auto" data-bs-toggle="modal" data-bs-target="#deleteModal">
+            <buttontype="button"class="btn btn-danger btn-sm"data-bs-toggle="modal"data-bs-target="#deleteModal"data-delete-url="{{ user.get_delete_url }}"
+            >
                 削除
             </button>
             {% endif %}
-
         </div>
     </form>
-
-    <!-- 削除確認モーダル -->
-    <div class="modal fade" id="deleteModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        ユーザー削除確認
-                    </h5>
-
-                    <button
-                        type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                    ></button>
-                </div>
-
-                <div class="modal-body">
-                    本当に削除しますか？
-                </div>
-
-                <div class="modal-footer">
-                    <button
-                        type="button"
-                        class="btn btn-secondary"
-                        data-bs-dismiss="modal"
-                    >
-                        キャンセル
-                    </button>
-
-                    <form
-                        method="post"
-                        action="{% url 'user_delete' object.pk %}"
-                    >
-                        {% csrf_token %}
-
-                        <button type="submit" class="btn btn-danger">
-                            削除する
-                        </button>
-                    </form>
-                </div>
-
-            </div>
-        </div>
-    </div>
 
 </div>
 {% endblock %}

@@ -20,14 +20,27 @@
     <div class="card-body">
         <form method="get" class="row g-3 align-items-end">
             <div class="col-md-6">
-                <label for="prefecture" class="form-label">都道府県</label>
-                <select id="prefecture" name="prefecture" class="form-select">
-                    <option value="">すべて</option>
-                    {% for value, label in prefecture_choices %}
-                    <option value="{{ value }}" {% if selected_prefecture == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
+                <label for="prefecture" class="form-label">
+                    都道府県
+                </label>
+                <div class="d-flex gap-1">
+                    <input
+                        type="text"
+                        id="prefecture-name-input"
+                        name="prefecture"
+                        class="form-control"
+                        placeholder="都道府県を入力"
+                        value="{{ form.prefecture.value|default:'' }}"
+                        autocomplete="off"
+                    >
+                </div>
+                <ul id="prefecture-name-dropdown" class="list-group position-absolute w-100" style="z-index: 1000;"></ul>
             </div>
+            {% if form.prefecture.errors %}
+            <div class="text-danger">
+                {{ form.prefecture.errors }}
+            </div>
+            {% endif %}
             <div class="col-auto">
                 <button type="submit" class="btn btn-outline-primary">絞り込む</button>
             </div>
@@ -37,20 +50,20 @@
 
 <div class="card shadow-sm">
     <div class="card-body">
-        <table class="table align-middle mb-0">
+        <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th>店舗名</th>
+                    <th class="ps-3">店舗名</th>
                     <th>店舗住所</th>
-                    <th class="text-end">編集</th>
+                    <th class="text-end pe-3">編集</th>
                 </tr>
             </thead>
             <tbody>
                 {% for shop in shops %}
                 <tr>
-                    <td>{{ shop.shop_name }}</td>
+                    <td class="ps-3">{{ shop.shop_name }}</td>
                     <td>{{ shop.get_full_address }}</td>
-                    <td class="text-end">
+                    <td class="text-end pe-3">
                         <a href="{% url 'shop_edit' shop.id %}" class="btn btn-sm btn-outline-primary">
                             編集
                         </a>

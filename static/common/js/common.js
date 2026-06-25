@@ -41,8 +41,18 @@ if (authoritySelect) {
     })
 }
 
-// オートコンプリート機能
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteModal = document.getElementById('deleteModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const btn = event.relatedTarget;
+            const url = btn.getAttribute('data-delete-url');
+            document.getElementById('deleteForm').action = url;
+        })
+    }
+})
 
+// オートコンプリート機能
 // クリアボタンの初期化
 function initClearBtn(clearBtnId, nameInputId, idInputId) {
     const clearBtn = document.querySelector(clearBtnId);
@@ -120,3 +130,5 @@ initAutocomplete('#shop-name-input', '#shop-name-dropdown', '/common/api/shops/a
 initClearBtn('#warehouse-clear-btn', '#warehouse-name-input', '#warehouse-id-input');
 initAutocomplete('#warehouse-name-input', '#warehouse-name-dropdown', '/common/api/warehouses/autocomplete/', '#warehouse-id-input');
 
+//都道府県名
+initAutocomplete('#prefecture-name-input', '#prefecture-name-dropdown', '/common/api/prefecture/autocomplete/')

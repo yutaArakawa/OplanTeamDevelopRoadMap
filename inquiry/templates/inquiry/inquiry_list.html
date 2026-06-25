@@ -3,20 +3,25 @@
 {% block title %}問い合わせ一覧{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-3">
-    <h2 class="mb-0">問い合わせ一覧</h2>
-
-    {% if user.authority_id == AUTHORITY_ADMIN %}
-    <a href="{% url 'inquiry_category_list' %}" class="btn btn-primary">
-        カテゴリ管理
-    </a>
-    {% else %}
-    <a href="{% url 'inquiry_create' %}" class="btn btn-primary">問い合わせ</a>
-    {% endif %}
+<div class="d-flex align-items-center mb-4">
+    <h1 class="h4 fw-bold mb-0" style="color:#1a2f4b;">問い合わせ一覧</h1>
+    <div class="ms-auto">
+        {% if user.authority_id == AUTHORITY_ADMIN %}
+        <a href="{% url 'inquiry_category_list' %}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-tags me-1"></i>カテゴリ管理
+        </a>
+        {% else %}
+        <a href="{% url 'inquiry_create' %}" class="btn btn-primary">
+            <i class="bi bi-chat-dots me-1"></i>問い合わせ
+        </a>
+        {% endif %}
+    </div>
 </div>
 
 <!-- 絞り込みフォーム -->
-<form method="get" class="row g-2 mb-4">
+<div class="card shadow-sm mb-4">
+<div class="card-body">
+<form method="get" class="row g-2 align-items-end">
     <div class="col-auto">
         <select name="category" class="form-select">
             <option value="">カテゴリ -</option>
@@ -57,17 +62,21 @@
     </div>
 
     <div class="col-auto">
-        <button type="submit" class="btn btn-outline-secondary">絞り込み</button>
-        <a href="{% url 'inquiry_list' %}" class="btn btn-link">リセット</a>
+        <button type="submit" class="btn btn-outline-primary">絞り込み</button>
+        <a href="{% url 'inquiry_list' %}" class="btn btn-outline-secondary ms-1">リセット</a>
     </div>
 </form>
+</div>
+</div>
 
 <!-- 受信一覧 -->
-<h4>受信一覧</h4>
-<table class="table table-hover mb-5">
-    <thead class="table-light">
+<h2 class="h6 fw-bold text-muted text-uppercase mb-2" style="letter-spacing:.05em;">受信一覧</h2>
+<div class="card shadow-sm mb-5">
+<div class="card-body p-0">
+<table class="table table-hover align-middle mb-0">
+    <thead>
         <tr>
-            <th>問い合わせ内容</th>
+            <th class="ps-3">問い合わせ内容</th>
             <th>カテゴリ</th>
             <th>権限</th>
             <th>所属</th>
@@ -114,22 +123,31 @@
             </td>
 
             <td>
-                <form method="post" action="{% url 'inquiry_delete' pk=inquiry.pk %}"
-                      onsubmit="return confirm('本当に削除しますか？');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
-                </form>
+                <button
+                    type="button"
+                    class="btn btn-danger btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteModal"
+                    data-delete-url="{{ inquiry.get_delete_url }}"
+                >
+                    削除
+                </button>
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="8" class="text-center text-muted">受信した問い合わせはありません</td></tr>
+        <tr><td colspan="9" class="text-center text-muted py-4">受信した問い合わせはありません</td></tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
+</div>
 
 <!-- 絞り込みフォーム(送信側) -->
 {% if request.user.authority_id == AUTHORITY_SHOP or request.user.authority_id == AUTHORITY_WAREHOUSE %}
-<form method="get" class="row g-2 mb-4">
+<h2 class="h6 fw-bold text-muted text-uppercase mb-2 mt-2" style="letter-spacing:.05em;">送信済み一覧</h2>
+<div class="card shadow-sm mb-3">
+<div class="card-body">
+<form method="get" class="row g-2 align-items-end">
     <div class="col-auto">
         <select name="sender_category" class="form-select">
             <option value="">カテゴリ -</option>
@@ -190,17 +208,19 @@
     </div>
 
     <div class="col-auto">
-        <button type="submit" class="btn btn-outline-secondary">絞り込み</button>
-        <a href="{% url 'inquiry_list' %}" class="btn btn-link">リセット</a>
+        <button type="submit" class="btn btn-outline-primary">絞り込み</button>
+        <a href="{% url 'inquiry_list' %}" class="btn btn-outline-secondary ms-1">リセット</a>
     </div>
 </form>
+</div>
+</div>
 
-<!-- 送信済み一覧 -->
-<h4>送信済み一覧</h4>
-<table class="table table-hover">
-    <thead class="table-light">
+<div class="card shadow-sm">
+<div class="card-body p-0">
+<table class="table table-hover align-middle mb-0">
+    <thead>
         <tr>
-            <th>問い合わせ内容</th>
+            <th class="ps-3">問い合わせ内容</th>
             <th>カテゴリ</th>
             <th>宛先権限</th>
             <th>宛先所属</th>
@@ -238,18 +258,24 @@
             </td>
 
             <td>
-                <form method="post" action="{% url 'inquiry_delete' pk=inquiry.pk %}"
-                      onsubmit="return confirm('本当に削除しますか？');">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger">削除</button>
-                </form>
+                <button
+                    type="button"
+                    class="btn btn-danger btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteModal"
+                    data-delete-url="{{ inquiry.get_delete_url }}"
+                >
+                    削除
+                </button>
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="8" class="text-center text-muted">送信した問い合わせはありません</td></tr>
+        <tr><td colspan="8" class="text-center text-muted py-4">送信した問い合わせはありません</td></tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
+</div>
 {% endif %}
 
 {% endblock %}

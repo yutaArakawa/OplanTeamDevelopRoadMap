@@ -13,9 +13,10 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import CreateView, TemplateView, UpdateView, ListView
+from django.views.generic import CreateView, DetailView, TemplateView, UpdateView, ListView
 from django.http import HttpResponse
 from common.mixins import AdminRequiredMixin, ShopStaffRequiredMixin, WarehouseStaffRequiredMixin
+from .services import minus_stock, restore_stock, add_shop_stock, subtract_shop_stock
 
 from inventory.forms import (
     GoodsCategoryForm,
@@ -560,6 +561,20 @@ class RelationCreateView(AdminRequiredMixin, CreateView):
         return response
 
 
+class RelationConnectView(AdminRequiredMixin, View):
+    def post(self, request):
+        shop = get_object_or_404(Shop.active_objects, pk=request.POST.get('shop_id'))
+        warehouse = get_object_or_404(Warehouse.active_objects, pk=request.POST.get('warehouse_id'))
+
+        if Relation.active_objects.filter(shop=shop, warehouse=warehouse).exists():
+            messages.error(request, '既に連携済みの倉庫です。')
+        else:
+            Relation.objects.create(shop=shop, warehouse=warehouse)
+            messages.success(request, f'「{warehouse.warehouse_name}」と連携しました。')
+
+        return redirect(request.POST.get('next') or reverse('relation_list'))
+
+
 class RelationDeleteView(AdminRequiredMixin, View):
     def post(self, request, pk):
         relation = get_object_or_404(Relation.active_objects, pk=pk)
@@ -581,7 +596,7 @@ class OrderGoodsListView(ShopStaffRequiredMixin, ListView):
 
     def get_queryset(self):
         # 連携倉庫の在庫合計を併せて取得
-        related_warehouse_ids = Relation.objects.filter(
+        related_warehouse_ids = Relation.active_objects.filter(
             shop=self.request.user.shop
         ).values_list('warehouse_id', flat=True)
 
@@ -600,7 +615,7 @@ class OrderGoodsListView(ShopStaffRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
 
         # ログインユーザーの店舗と連携している倉庫IDを取得
-        related_warehouse_ids = Relation.objects.filter(
+        related_warehouse_ids = Relation.active_objects.filter(
             shop=self.request.user.shop
         ).values_list('warehouse_id', flat=True)
 
@@ -672,7 +687,7 @@ class OrderCreateView(ShopStaffRequiredMixin, TemplateView):
 class OrderCsvDownloadView(ShopStaffRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         try:
-            related_warehouse_ids = Relation.objects.filter(
+            related_warehouse_ids = Relation.active_objects.filter(
                 shop=self.request.user.shop
             ).values_list('warehouse_id', flat=True)
 
@@ -973,17 +988,27 @@ def _get_filtered_orders(request):
     return qs
 
 
+_STATUS_TRANSITIONS = {
+    Order.Status.ORDERED:   [Order.Status.ORDERED,   Order.Status.PREPARING, Order.Status.CANCELED],
+    Order.Status.PREPARING: [Order.Status.PREPARING, Order.Status.SHIPPED,   Order.Status.CANCELED],
+    Order.Status.SHIPPED:   [Order.Status.SHIPPED,   Order.Status.DELIVERED, Order.Status.CANCELED],
+    Order.Status.DELIVERED: [Order.Status.DELIVERED, Order.Status.CANCELED],
+    Order.Status.CANCELED:  [Order.Status.CANCELED],
+}
+
+
 def _build_rows(orders):
     """テンプレート・CSV・PDF 共通のフラット行リストを生成する（rowspan 計算込み）。"""
     rows = []
     for order in orders:
         goods_list = order.active_order_goods
         count = len(goods_list)
+        available_statuses = _STATUS_TRANSITIONS.get(order.status, [])
         if count == 0:
-            rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1})
+            rows.append({'order': order, 'order_goods': None, 'is_first': True, 'goods_count': 1, 'available_statuses': available_statuses})
         else:
             for i, og in enumerate(goods_list):
-                rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count})
+                rows.append({'order': order, 'order_goods': og, 'is_first': i == 0, 'goods_count': count, 'available_statuses': available_statuses})
     return rows
 
 
@@ -1003,27 +1028,72 @@ class WarehouseOrderListView(WarehouseStaffRequiredMixin, TemplateView):
 
 class WarehouseOrderStatusUpdateView(WarehouseStaffRequiredMixin, View):
 
-    ALLOWED_STATUSES = {Order.Status.ORDERED.value, Order.Status.PREPARING.value}
+    ALLOWED_STATUSES = {Order.Status.ORDERED.value,
+                        Order.Status.PREPARING.value,
+                        Order.Status.SHIPPED.value,
+                        Order.Status.DELIVERED.value,
+                        Order.Status.CANCELED.value,}
+
+    STOCK_DEDUCTED_STATUSES = {
+        Order.Status.SHIPPED.value,
+        Order.Status.DELIVERED.value,
+    }
 
     def post(self, request, pk):
-        order = get_object_or_404(
-            Order.active_objects,
-            pk=pk,
-            relation__warehouse=request.user.warehouse,
-        )
-        new_status = request.POST.get('status', '').strip()
-        try:
-            new_status_int = int(new_status)
-            if new_status_int not in self.ALLOWED_STATUSES:
-                raise ValueError
-        except (ValueError, TypeError):
-            messages.error(request, '無効なステータスです。')
-            return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+        with transaction.atomic():
+            order = get_object_or_404(
+                Order.active_objects.select_for_update(),
+                pk=pk,
+                relation__warehouse=request.user.warehouse,
+            )
+            new_status = request.POST.get('status', '').strip()
+            try:
+                new_status_int = int(new_status)
+                if new_status_int not in self.ALLOWED_STATUSES:
+                    raise ValueError
+            except (ValueError, TypeError):
+                messages.error(request, '無効なステータスです。')
+                return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
-        order.status = new_status_int
-        order.save(update_fields=['status', 'updated_at'])
-        messages.success(request, 'ステータスを更新しました。')
-        return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+            old_status = order.status
+
+            # 在庫未減算の状態から発送済みになる時だけ引く
+            try:
+                if (
+                    old_status not in self.STOCK_DEDUCTED_STATUSES
+                    and new_status_int == Order.Status.SHIPPED.value
+                ):
+                    minus_stock(order)
+
+                # 在庫減算済みの状態からキャンセルになる時は倉庫在庫を戻す
+                if (
+                    old_status in self.STOCK_DEDUCTED_STATUSES
+                    and new_status_int == Order.Status.CANCELED.value
+                ):
+                    restore_stock(order)
+
+                # 発送済みから納品済みになる時に店舗在庫を追加する
+                if (
+                    old_status == Order.Status.SHIPPED.value
+                    and new_status_int == Order.Status.DELIVERED.value
+                ):
+                    add_shop_stock(order)
+
+                # 納品済みからキャンセルになる時に店舗在庫を引く
+                if (
+                    old_status == Order.Status.DELIVERED.value
+                    and new_status_int == Order.Status.CANCELED.value
+                ):
+                    subtract_shop_stock(order)
+
+            except (WarehouseStock.DoesNotExist, ShopStock.DoesNotExist):
+                messages.error(request, "在庫データが存在しません。")
+                return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
+
+            order.status = new_status_int
+            order.save(update_fields=['status', 'updated_at'])
+            messages.success(request, 'ステータスを更新しました。')
+            return redirect(request.POST.get('next') or reverse('warehouse_order_list'))
 
 
 class WarehouseOrderCSVExportView(WarehouseStaffRequiredMixin, View):
@@ -1146,3 +1216,43 @@ class WarehouseOrderPDFExportView(WarehouseStaffRequiredMixin, View):
             return redirect('warehouse_order_list')
     
     
+class ShopDetailView(AdminRequiredMixin, DetailView):
+    model = Shop
+    template_name = 'inventory/shop_detail.html'
+    context_object_name = 'shop'
+
+    def get_queryset(self):
+        return Shop.active_objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        shop = self.object
+
+        prefecture = self.request.GET.get('prefecture', '')
+        q = self.request.GET.get('q', '')
+        status = self.request.GET.get('status', '')
+
+        connected_relations = Relation.active_objects.filter(shop=shop).select_related('warehouse')
+        connected_warehouse_ids = connected_relations.values_list('warehouse_id', flat=True)
+        not_connected = Warehouse.active_objects.exclude(id__in=connected_warehouse_ids)
+
+        if prefecture:
+            connected_relations = connected_relations.filter(warehouse__prefecture=prefecture)
+            not_connected = not_connected.filter(prefecture=prefecture)
+
+        if q:
+            connected_relations = connected_relations.filter(warehouse__warehouse_name__icontains=q)
+            not_connected = not_connected.filter(warehouse_name__icontains=q)
+
+        if status == 'connected':
+            not_connected = Warehouse.active_objects.none()
+        elif status == 'not_connected':
+            connected_relations = Relation.active_objects.none()
+
+        context['connected_relations'] = connected_relations
+        context['not_connected_warehouses'] = not_connected
+        context['prefecture_choices'] = PREFECTURE_CHOICES
+        context['selected_prefecture'] = prefecture
+        context['selected_q'] = q
+        context['selected_status'] = status
+        return context
