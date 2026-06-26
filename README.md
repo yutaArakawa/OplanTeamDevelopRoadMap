@@ -16,6 +16,7 @@
 ### 技術スタック
 
 - **Backend**: Django 6.0.5
+- **Frontend**: React 18 + Vite（新画面）/ Django テンプレート（既存画面）
 - **Database**: MySQL 8.0（本番）/ SQLite（テスト）
 - **Container**: Docker & Docker Compose
 - **Batch Jobs**: Linux cron（Docker コンテナ内）
@@ -45,7 +46,8 @@ docker compose -f docker-compose.dev.yml up -d
 ```
 
 **アクセス:**
-- Web アプリ: http://localhost（ポート80）
+- Django 既存画面: http://localhost（ポート80）
+- React 新画面: http://localhost/react
 - MySQL: localhost:3307
 
 ---
@@ -348,6 +350,39 @@ docker compose exec cron cat /var/log/cron.log
 
 ---
 
+## React フロントエンド
+
+このシステムは Django テンプレートによる既存画面と React による新画面が共存しています。
+
+### URL の切り分け
+
+| 種別 | URL パターン | 例 |
+|---|---|---|
+| React 画面 | `/react/` で始まる | `http://localhost/react/`、`http://localhost/react/login` |
+| Django 既存画面 | `/react/` 以外 | `http://localhost/accounts/login/`、`http://localhost/inventory/orders/` |
+| Django API | `/api/` で始まる | `http://localhost/api/auth/login/`、`http://localhost/api/accounts/user/list/` |
+
+### 現在 React 化済みの画面
+
+- **ログイン** — `http://localhost/react/login`
+- **ホーム（ダッシュボード）** — `http://localhost/react/`
+- **ユーザー管理一覧** — `http://localhost/react/accounts/user/list`
+- **ユーザー作成** — `http://localhost/react/accounts/user/create`（管理者のみ）
+- **ユーザー編集** — `http://localhost/react/accounts/user/:id/edit`（管理者のみ）
+
+### フロントエンド開発
+
+React のソースは `frontend/` ディレクトリに配置されています。Vite によるビルド成果物は Django の静的ファイルとして配信されます。
+
+```bash
+# フロントエンドのビルド（コンテナ起動時に自動実行）
+docker compose exec web python manage.py collectstatic --noinput
+```
+
+詳細は **[frontend/CLAUDE.md](./frontend/CLAUDE.md)** を参照してください。
+
+---
+
 ## アーキテクチャ詳細
 
 詳細なアーキテクチャ・設計情報は **[CLAUDE.md](./CLAUDE.md)** を参照してください：
@@ -359,6 +394,68 @@ docker compose exec cron cat /var/log/cron.log
 - 問い合わせシステム
 - ロールベース権限設計
 - テスト構成
+
+---
+
+## ログ収集システム（Grafana / Loki / Promtail）
+
+### 概要
+
+このシステムはPLGスタック（Promtail + Loki + Grafana）によるログ収集・可視化を導入しています。
+
+| ツール | 役割 |
+|---|---|
+| Promtail | 各コンテナのログを収集してLokiへ転送 |
+| Loki | ログを保存・管理 |
+| Grafana | ログを検索・可視化するWebUI |
+
+### ローカル環境でのアクセス
+
+開発環境では起動後にブラウザで直接アクセスできます。
+
+```
+http://localhost:3000
+```
+
+ログイン情報は `.env` の `GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD` を参照してください。
+
+### 本番環境でのアクセス（SSHトンネル）
+
+本番環境のGrafanaは外部に公開されていないため、SSHトンネル経由でアクセスします。
+
+```bash
+# 本番サーバーにSSH接続しながらポートを手元に転送
+ssh -L 3000:localhost:3000 user@本番サーバーのIP
+
+# ブラウザでアクセス
+http://localhost:3000
+```
+
+### ログの確認方法
+
+1. Grafanaにログイン
+2. 左メニューの「**Connections**」→「**Data sources**」→「**Add data source**」
+3. 「**Loki**」を選択し、URL に `http://loki:3100` を入力して「**Save & test**」
+4. 左メニューの「**Explore**」→ データソースで「**Loki**」を選択
+5. `Label filters` で `container` を選び、確認したいコンテナを指定して「**Run query**」
+
+### セキュリティ
+
+- ログ保存前に機密情報（パスワード・メールアドレス・セッションID・電話番号）を自動マスク
+- 本番環境ではGrafanaは `127.0.0.1` にバインドされており、外部から直接アクセス不可
+- Lokiへの外部ポートは閉じており、コンテナ間通信のみ
+
+### Promtail設定の変更後
+
+`promtail-config.yml` を変更した場合は以下で反映してください。
+
+```bash
+# 開発環境
+docker compose -f docker-compose.dev.yml restart promtail
+
+# 本番環境
+docker compose -f docker-compose.prod.yml restart promtail
+```
 
 ---
 

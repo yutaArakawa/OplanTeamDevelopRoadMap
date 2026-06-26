@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
+    # 既存エンドポイント
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('common/', include('common.urls')),
@@ -25,4 +26,10 @@ urlpatterns = [
     path('inquiry/', include('inquiry.urls')),
     path('', include('dashboard.urls')),
     path('prison/', include('prison.urls')),
+
+    # 以降React用エンドポイント
+    path('api/auth/', include('accounts.api_auth_urls')),
+    path('api/dashboard/', include('dashboard.api_urls')),
+    path('api/accounts/', include('accounts.api_accounts_urls')),
+
 ]

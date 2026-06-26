@@ -57,6 +57,13 @@ services:
       - BASIC=${BASIC:-false}
       - STATIC_DIR=/app/static/
       - STATIC_CACHE_CONTROL=no-cache, must-revalidate
+      - >-
+        REACT_LOCATION=
+        proxy_pass http://frontend:5173;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $$http_host;
     networks:
       - frontend_network
   
@@ -74,8 +81,64 @@ services:
     networks:
       - backend_network
 
+  frontend:
+    build: ./frontend
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://web:8000
+      - VITE_API_BASE=/api
+      - VITE_APP_NAME=Stock Management System
+      - TZ=Asia/Tokyo
+    depends_on:
+      - web
+    stdin_open: true
+    tty: true
+    networks:
+      - frontend_network
+      - backend_network
+
+  loki:
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    networks:
+      - backend_network
+      - frontend_network
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - backend_network
+      - frontend_network
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - loki
+    networks:
+      - backend_network
+      - frontend_network
+
 volumes:
   mysql_data:
+  grafana_data:
 
 networks:
   frontend_network:

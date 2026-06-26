@@ -7,3 +7,6 @@ DJANGO_SETTINGS_MODULE=config.settings
 
 # 月次注文サマリー集計バッチ
 0 23 * * * root bash /app/batch/run_monthly_order_summary.sh >> /var/log/cron.log 2>&1
+
+# MySQLバックアップバッチ
+0 2 * * * root bash /app/batch/run_mysql_backup.sh >> /var/log/cron.log 2>&1

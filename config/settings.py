@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders',
     'inventory',
     'accounts',
     'dashboard',
@@ -61,6 +62,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -174,12 +176,32 @@ LOGIN_REDIRECT_URL = '/'
 
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
+# CORS 設定（React からの リクエスト許可）
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",      # React 開発サーバー
+    "http://localhost:3000",       # 代替（npm run dev で 3000 を使う場合）
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
+# クッキーや認証情報を含むリクエストを許可する設定
+CORS_ALLOW_CREDENTIALS = True
+
+# JavaScriptからCookieを読めるようにする
+CSRF_COOKIE_HTTPONLY = False
+
 REST_FRAMEWORK = {
+    # API全体でセッション認証を使用する設定
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
     ],
+    # API全体でページネーションを使用する設定
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    # 1ページあたりのアイテム数を指定
+    'PAGE_SIZE': 50,
+  
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'EXCEPTION_HANDLER': 'common.exceptions.custom_exception_handler',
+    'EXCEPTION_HANDLER': 'common.exceptions.custom_exception_handler'
 }
