@@ -1,13 +1,33 @@
-const sidebarEl = document.querySelector('#offcanvasSidebar');
-const sidebar = new bootstrap.Offcanvas(sidebarEl)
+// @ts-nocheck
+(function () {
+    const sidebar  = document.getElementById('appSidebar');
+    const overlay  = document.getElementById('sidebarOverlay');
+    const toggle   = document.getElementById('sidebarToggle');
 
-document.addEventListener('mousemove', (e) => {
-    // マウスのX座標が左端から20px以内に入ったら発火
-    if (e.clientX <= 20) {
-        sidebar.show();
+    if (!sidebar) return;
+
+    function openSidebar() {
+        sidebar.classList.add('sidebar-open');
+        overlay && overlay.classList.add('show');
     }
-});
-// サイドバーからマウスが離れたら閉じる
-sidebarEl.addEventListener('mouseleave', () => {
-    sidebar.hide();
-});
+    function closeSidebar() {
+        sidebar.classList.remove('sidebar-open');
+        overlay && overlay.classList.remove('show');
+    }
+
+    toggle  && toggle.addEventListener('click', openSidebar);
+    overlay && overlay.addEventListener('click', closeSidebar);
+
+    // PC幅に戻ったらモバイル用クラスをリセット
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 992) closeSidebar();
+    });
+
+    // 現在のURLに対応するナビリンクをアクティブに
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('sidebar-link-active');
+        }
+    });
+})();
