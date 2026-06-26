@@ -199,9 +199,4 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     # 1ページあたりのアイテム数を指定
     'PAGE_SIZE': 50,
-  
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-    'EXCEPTION_HANDLER': 'common.exceptions.custom_exception_handler'
 }
