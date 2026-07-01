@@ -9,11 +9,13 @@ classDiagram
         +datetime created_at
         +datetime updated_at
     }
-
+    
     class User {
         +int id
-        +str user_name
         +str password
+        +datetime last_login
+        +int is_superuser
+        +str username
         +str user_gender
         +int authority_id
         +int warehouse_id
@@ -22,6 +24,7 @@ classDiagram
         +datetime created_at
         +datetime updated_at
     }
+    %% 最終ログインテーブルの追加
 
     class Warehouse {
         +int id
@@ -64,7 +67,7 @@ classDiagram
         +datetime updated_at
     }
 
-    class Warehouse_Stock {
+    class WarehouseStock {
         +int id
         +int warehouse_id
         +int goods_id
@@ -86,8 +89,8 @@ classDiagram
 
     class Relation {
         +int id
-        +int shop_id
         +int warehouse_id
+        +int shop_id
         +bool delete_flg
         +datetime created_at
         +datetime updated_at
@@ -96,7 +99,7 @@ classDiagram
     class Order {
         +int id
         +int relation_id
-        +str status
+        +int status
         +datetime ordered_at
         +datetime shipped_at
         +bool delete_flg
@@ -125,39 +128,64 @@ classDiagram
         +datetime updated_at
     }
 
-    class Inquiry {
+    class InquiryCategory {
         +int id
-        +str to_authority
-        +int from_user_id
-        +str from_name
-        +str from_authority
-        +str from_belong_shop
-        +str from_belong_warehouse
-        +str to_relation
-        +str inquiry_title
-        +str inquiry_details
-        +str status
+        +str category_name
         +bool delete_flg
         +datetime created_at
         +datetime updated_at
     }
 
-    class LowStockThreshold {
+    class Inquiry {
         +int id
-        +int goods_id
-        +int shop_id
-        +int warehouse_id
+        +int to_authority_id
+        +int from_user_id
+        +str from_name
+        +int from_authority_id
+        +int from_belong_shop_id
+        +int from_belong_warehouse_id
+        +int to_relation_id
+        +str inquiry_title
+        +str inquiry_details
+        +int status
+        +int inquiry_category_id
+        +bool delete_flg
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class WarehouseStockThreshold {
+        +int id
+        +int warehouse_stock_id
         +int threshold_quantity
         +bool delete_flg
         +datetime created_at
         +datetime updated_at
     }
 
-    class LowStockAlert {
+    class ShopStockThreshold {
         +int id
-        +int goods_id
-        +int shop_id
-        +int warehouse_id
+        +int shop_stock_id
+        +int threshold_quantity
+        +bool delete_flg
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class WarehouseStockAlert {
+        +int id
+        +int warehouse_stock_id
+        +int stock_at_alert
+        +bool is_read
+        +int read_user_id
+        +bool delete_flg
+        +datetime created_at
+        +datetime updated_at
+    }
+
+    class ShopStockAlert {
+        +int id
+        +int shop_stock_id
         +int stock_at_alert
         +bool is_read
         +int read_user_id
@@ -168,28 +196,33 @@ classDiagram
 
     %% 既存の関係
     Authority "1" --> "0..*" User : authority_id
-    Warehouse "1" --> "0..*" User : warehouse_id
-    Shop "1" --> "0..*" User : shop_id
+    Warehouse "0..1" --> "0..*" User : warehouse_id
+    Shop "0..1" --> "0..*" User : shop_id
     GoodsCategory "1" --> "0..*" Goods : goods_category_id
     Warehouse "1" --> "0..*" WarehouseStock : warehouse_id
     Goods "1" --> "0..*" WarehouseStock : goods_id
     Shop "1" --> "0..*" ShopStock : shop_id
     Goods "1" --> "0..*" ShopStock : goods_id
-    Shop "1" --> "0..*" Relation : shop_id
     Warehouse "1" --> "0..*" Relation : warehouse_id
+    Shop "1" --> "0..*" Relation : shop_id
     Relation "1" --> "0..*" Order : relation_id
     Order "1" --> "0..*" OrderGoods : order_id
     Goods "1" --> "0..*" OrderGoods : goods_id
     Shop "1" --> "0..*" MonthlyOrderSummary : shop_id
     Goods "1" --> "0..*" MonthlyOrderSummary : goods_id
-    User "1" --> "0..*" Inquiry : from_user_id
+    InquiryCategory "1" --> "0..*" Inquiry : inquiry_category_id
+    Authority "1" --> "0..*" Inquiry : to_authority_id
+    User "0..1" --> "0..*" Inquiry : from_user_id
+    Authority "0..1" --> "0..*" Inquiry : from_authority_id
+    Shop "0..1" --> "0..*" Inquiry : from_belong_shop_id
+    Warehouse "0..1" --> "0..*" Inquiry : from_belong_warehouse_id
+    Relation "0..1" --> "0..*" Inquiry : to_relation_id
 
     %% 低在庫アラート機能（新規）
-    Goods "1" --> "0..*" LowStockThreshold : goods_id
-    Shop "0..1" --> "0..*" LowStockThreshold : shop_id
-    Warehouse "0..1" --> "0..*" LowStockThreshold : warehouse_id
-    Goods "1" --> "0..*" LowStockAlert : goods_id
-    Shop "0..1" --> "0..*" LowStockAlert : shop_id
-    Warehouse "0..1" --> "0..*" LowStockAlert : warehouse_id
-    User "0..1" --> "0..*" LowStockAlert : read_user_id
+    WarehouseStock "1" --> "0..*" WarehouseStockThreshold : warehouse_stock_id
+    ShopStock "1" --> "0..*" ShopStockThreshold : shop_stock_id
+    WarehouseStock "1" --> "0..*" WarehouseStockAlert : warehouse_stock_id
+    ShopStock "1" --> "0..*" ShopStockAlert : shop_stock_id
+    User "0..1" --> "0..*" WarehouseStockAlert : read_user_id
+    User "0..1" --> "0..*" ShopStockAlert : read_user_id
 ```
