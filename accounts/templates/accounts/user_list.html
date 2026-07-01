@@ -1,22 +1,17 @@
 {% extends 'base.html' %}
 
-{% block title %}ユーザー一覧{% endblock %}
+{% block title %}
+ユーザー一覧
+{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center mb-4">
-    <h1 class="h4 fw-bold mb-0" style="color:#1a2f4b;">ユーザー管理</h1>
-    <a href="{% url 'user_create' %}" class="btn btn-primary ms-auto">
-        <i class="bi bi-person-plus me-1"></i>新規作成
-    </a>
-</div>
-
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
+<div class="d-flex user-list-header">
+    <form method="get" class="row g-3 mb-3">
+        <div class="col-auto d-flex align-items-center gap-2">
             {% if user.authority_id == AUTHORITY_ADMIN %}
-            <div class="col-md-3">
-                <label class="form-label">権限</label>
-                <select name="authority" class="form-select" id="authority-select">
+            <div>
+                <p class="mb-0">権限</p>
+                <select name="authority" class="form-select " id="authority-select">
                     <option value=""> - </option>
                     {% for authority in authorities %}
                     <option value="{{authority.id}}" {% if request.GET.authority == authority.id|stringformat:"s" %}selected{% endif %}>{{authority}}</option>
@@ -25,8 +20,8 @@
             </div>
             {% endif %}
             {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_SHOP %}
-            <div class="col-md-3">
-                <label class="form-label">所属店舗</label>
+            <div>
+                <p class="mb-0">所属店舗</p>
                 <select name="shop" class="form-select" id="belonging-select-shop">
                     <option value=""> - </option>
                     {% for shop in shops %}
@@ -36,8 +31,8 @@
             </div>
             {% endif %}
             {% if user.authority_id == AUTHORITY_ADMIN or user.authority_id == AUTHORITY_WAREHOUSE %}
-            <div class="col-md-3">
-                <label class="form-label">所属倉庫</label>
+            <div>
+                <p class="mb-0">所属倉庫</p>
                 <select name="warehouse" class="form-select" id="belonging-select-warehouse">
                     <option value=""> - </option>
                     {% for warehouse in warehouses %}
@@ -46,88 +41,106 @@
                 </select>
             </div>
             {% endif %}
-            <div class="col-auto">
-                <button type="submit" class="btn btn-outline-primary">絞り込む</button>
-                <a href="{% url 'user_list' %}" class="btn btn-outline-secondary ms-1">リセット</a>
-            </div>
-        </form>
-    </div>
+        </div>
+        <div class="col-auto d-flex align-items-end">
+            <button type="submit" class="btn btn-outline-primary">絞り込む</button>
+            <a href="{% url 'user_list' %}" class="btn btn-outline-secondary ms-1">リセット</a>
+        </div>
+    </form>
+    <a href="{% url 'user_create' %}" class="btn btn-primary mb-5 ms-auto">新規作成</a>
 </div>
+<table class="table">
+    <thead>
+        <tr>
+            <th>ユーザー名</th>
+            <th>性別</th>
+            <th>権限</th>
+            <th>所属</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr class="align-middle">
+            <!--ユーザー名-->
+            <td>{{ user.username}}</td>
 
-<div class="card shadow-sm">
-    <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
-            <thead>
-                <tr>
-                    <th class="ps-3">ユーザー名</th>
-                    <th>性別</th>
-                    <th>権限</th>
-                    <th>所属</th>
-                    <th class="text-end pe-3">操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr>
-                    <td class="ps-3">{{ user.username }}</td>
-                    {% if user.user_gender == GENDER_MEN %}
-                    <td>男性</td>
-                    {% elif user.user_gender == GENDER_WOMEN %}
-                    <td>女性</td>
-                    {% elif user.user_gender == GENDER_OTHERS %}
-                    <td>その他</td>
-                    {% endif %}
-                    <td>{{ user.authority }}</td>
-                    {% if user.authority_id == AUTHORITY_ADMIN %}
-                    <td>-</td>
-                    {% elif user.authority_id == AUTHORITY_SHOP %}
-                    <td>{{ user.shop }}</td>
-                    {% elif user.authority_id == AUTHORITY_WAREHOUSE %}
-                    <td>{{ user.warehouse }}</td>
-                    {% endif %}
-                    <td class="text-end pe-3">
-                        {% if user == request.user %}
-                        <a href="{% url 'mypage' %}" class="btn btn-sm btn-outline-primary">マイページ</a>
-                        {% elif request.user.authority_id == AUTHORITY_ADMIN %}
-                        <a href="{% url 'user_update' user.pk %}" class="btn btn-sm btn-outline-secondary">編集</a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center text-muted py-4">ユーザーが存在しません</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+            <!--性別-->
+            {% if user.user_gender == GENDER_MEN %}
+            <td>男性</td>
+            {% elif user.user_gender == GENDER_WOMEN %}
+            <td>女性</td>
+            {% elif user.user_gender == GENDER_OTHERS %}
+            <td>その他</td>
+            {% endif %}
+
+            <!--権限-->
+            <td>{{ user.authority}}</td>
+
+            <!--所属-->
+            {% if user.authority_id == AUTHORITY_ADMIN %}
+            <td> - </td>
+            {% elif user.authority_id == AUTHORITY_SHOP %}
+            <td>{{ user.shop}}</td>
+            {% elif user.authority_id == AUTHORITY_WAREHOUSE %}
+            <td>{{ user.warehouse}}</td>
+            {% endif %}
+
+            <!--操作-->
+            <td>
+                {% if user == request.user %}
+                <a href="{% url 'mypage' %}" class="btn btn-sm btn-outline-primary">マイページ</a>
+                {% elif request.user.authority_id == AUTHORITY_ADMIN %}
+                <a href="{% url 'user_update' user.pk %}" class="btn btn-sm btn-outline-secondary">編集</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+            ユーザーが存在しません
+        {% endfor %}
+    </tbody>
+</table>
 
 <!-- ページネーション -->
 {% if page_obj.has_other_pages %}
-<nav aria-label="ページネーション" class="mt-3">
-    <ul class="pagination justify-content-center">
+<nav aria-label="ページネーション">
+    <ul class="pagination justify-content-center mt-3">
+
+        <!-- 前へ -->
         {% if page_obj.has_previous %}
         <li class="page-item">
             <a class="page-link" href="?page={{ page_obj.previous_page_number }}{{ filter_query }}">前へ</a>
         </li>
         {% else %}
-        <li class="page-item disabled"><span class="page-link">前へ</span></li>
+        <li class="page-item disabled">
+            <span class="page-link">前へ</span>
+        </li>
         {% endif %}
+
+        <!-- ページ番号 -->
         {% for num in paginator.page_range %}
         {% if page_obj.number == num %}
-        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        <li class="page-item active">
+            <span class="page-link">{{ num }}</span>
+        </li>
         {% else %}
-        <li class="page-item"><a class="page-link" href="?page={{ num }}{{ filter_query }}">{{ num }}</a></li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ num }}{{ filter_query }}">{{ num }}</a>
+        </li>
         {% endif %}
         {% endfor %}
+
+        <!-- 次へ -->
         {% if page_obj.has_next %}
         <li class="page-item">
             <a class="page-link" href="?page={{ page_obj.next_page_number }}{{ filter_query }}">次へ</a>
         </li>
         {% else %}
-        <li class="page-item disabled"><span class="page-link">次へ</span></li>
+        <li class="page-item disabled">
+            <span class="page-link">次へ</span>
+        </li>
         {% endif %}
+
     </ul>
 </nav>
 {% endif %}

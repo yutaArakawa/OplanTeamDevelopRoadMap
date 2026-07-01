@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from common.exceptions import ForbiddenException, NotFoundException
+from django.core.exceptions import PermissionDenied
 from django.views import View
 from django.views.generic import TemplateView, CreateView, UpdateView
 from django.urls import reverse_lazy, reverse
@@ -26,7 +26,7 @@ class NonAdminRequiredMixin(LoginRequiredMixin):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
         if request.user.authority_id == AUTHORITY_ADMIN:
-            raise ForbiddenException
+            raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -234,7 +234,7 @@ class InquiryDetailView(LoginRequiredMixin, View):
         is_recv = _is_receiver(user, inquiry)
         is_sender = (inquiry.from_user == user)
         if not is_recv and not is_sender:
-            raise ForbiddenException
+            raise PermissionDenied
         return inquiry, is_recv
 
     def get(self, request, pk, *args, **kwargs):
@@ -257,7 +257,7 @@ class InquiryDetailView(LoginRequiredMixin, View):
     def post(self, request, pk, *args, **kwargs):
         inquiry, is_recv = self._get_inquiry_or_403(request, pk)
         if not is_recv:
-            raise ForbiddenException
+            raise PermissionDenied
         form = InquiryStatusUpdateForm(request.POST, instance=inquiry)
         if form.is_valid():
             form.save()

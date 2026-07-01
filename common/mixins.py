@@ -1,6 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from common.constants import (AUTHORITY_ADMIN, AUTHORITY_SHOP, AUTHORITY_WAREHOUSE)
-from common.exceptions import ForbiddenException
 
 # 管理者
 class AdminRequiredMixin(LoginRequiredMixin):
@@ -8,7 +8,7 @@ class AdminRequiredMixin(LoginRequiredMixin):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
         if request.user.authority_id != AUTHORITY_ADMIN:
-            raise ForbiddenException
+            raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
 # 店舗スタッフ
@@ -17,7 +17,7 @@ class ShopStaffRequiredMixin(LoginRequiredMixin):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
         if request.user.authority_id != AUTHORITY_SHOP:
-            raise ForbiddenException
+            raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
 # 倉庫スタッフ
@@ -26,5 +26,5 @@ class WarehouseStaffRequiredMixin(LoginRequiredMixin):
         if not request.user.is_authenticated:
             return self.handle_no_permission()
         if request.user.authority_id != AUTHORITY_WAREHOUSE:
-            raise ForbiddenException
+            raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)

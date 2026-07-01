@@ -203,4 +203,4 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'EXCEPTION_HANDLER': 'common.exceptions.custom_exception_handler',
-  }
+}

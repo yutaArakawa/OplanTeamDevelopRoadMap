@@ -397,6 +397,68 @@ docker compose exec web python manage.py collectstatic --noinput
 
 ---
 
+## ログ収集システム（Grafana / Loki / Promtail）
+
+### 概要
+
+このシステムはPLGスタック（Promtail + Loki + Grafana）によるログ収集・可視化を導入しています。
+
+| ツール | 役割 |
+|---|---|
+| Promtail | 各コンテナのログを収集してLokiへ転送 |
+| Loki | ログを保存・管理 |
+| Grafana | ログを検索・可視化するWebUI |
+
+### ローカル環境でのアクセス
+
+開発環境では起動後にブラウザで直接アクセスできます。
+
+```
+http://localhost:3000
+```
+
+ログイン情報は `.env` の `GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD` を参照してください。
+
+### 本番環境でのアクセス（SSHトンネル）
+
+本番環境のGrafanaは外部に公開されていないため、SSHトンネル経由でアクセスします。
+
+```bash
+# 本番サーバーにSSH接続しながらポートを手元に転送
+ssh -L 3000:localhost:3000 user@本番サーバーのIP
+
+# ブラウザでアクセス
+http://localhost:3000
+```
+
+### ログの確認方法
+
+1. Grafanaにログイン
+2. 左メニューの「**Connections**」→「**Data sources**」→「**Add data source**」
+3. 「**Loki**」を選択し、URL に `http://loki:3100` を入力して「**Save & test**」
+4. 左メニューの「**Explore**」→ データソースで「**Loki**」を選択
+5. `Label filters` で `container` を選び、確認したいコンテナを指定して「**Run query**」
+
+### セキュリティ
+
+- ログ保存前に機密情報（パスワード・メールアドレス・セッションID・電話番号）を自動マスク
+- 本番環境ではGrafanaは `127.0.0.1` にバインドされており、外部から直接アクセス不可
+- Lokiへの外部ポートは閉じており、コンテナ間通信のみ
+
+### Promtail設定の変更後
+
+`promtail-config.yml` を変更した場合は以下で反映してください。
+
+```bash
+# 開発環境
+docker compose -f docker-compose.dev.yml restart promtail
+
+# 本番環境
+docker compose -f docker-compose.prod.yml restart promtail
+```
+
+---
+
 ## 本番環境へのデプロイ
 
 ### 環境変数設定
